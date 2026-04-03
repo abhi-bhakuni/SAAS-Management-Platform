@@ -1,0 +1,90 @@
+<html>
+  <head>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 20px auto;
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        padding: 40px;
+      }
+      h1 {
+        color: #333;
+        margin-bottom: 20px;
+      }
+      p {
+        color: #666;
+        line-height: 1.6;
+        margin-bottom: 15px;
+      }
+      .cta-button {
+        display: inline-block;
+        background-color: #2563eb;
+        color: #ffffff;
+        padding: 12px 30px;
+        text-decoration: none;
+        border-radius: 4px;
+        margin: 20px 0;
+        font-weight: bold;
+      }
+      .cta-button:hover {
+        background-color: #1d4ed8;
+      }
+      .footer {
+        color: #999;
+        font-size: 12px;
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+      }
+      .token-section {
+        background-color: #f9fafb;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 20px 0;
+        font-family: monospace;
+        word-break: break-all;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Welcome to {{organizationName}}!</h1>
+
+      <p>Hi there,</p>
+
+      <p>
+        <strong>{{inviterName}}</strong> has invited you to join
+        <strong>{{organizationName}}</strong> on our SAAS Management Platform.
+      </p>
+
+      <p>Click the button below to accept the invitation and create your account:</p>
+
+      <a href="{{acceptInviteUrl}}" class="cta-button">Accept Invitation</a>
+
+      <p>Or use this token if needed:</p>
+      <div class="token-section">
+        {{inviteToken}}
+      </div>
+
+      <p>
+        This invitation will expire in 14 days. If you don't want to join {{organizationName}},
+        you can ignore this email.
+      </p>
+
+      <div class="footer">
+        <p>
+          © 2024 SAAS Management Platform. All rights reserved.<br>
+          If you have any questions, please contact support.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

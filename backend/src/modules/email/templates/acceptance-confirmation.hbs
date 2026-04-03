@@ -1,0 +1,79 @@
+<html>
+  <head>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 20px auto;
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        padding: 40px;
+      }
+      h1 {
+        color: #333;
+        margin-bottom: 20px;
+      }
+      p {
+        color: #666;
+        line-height: 1.6;
+        margin-bottom: 15px;
+      }
+      .cta-button {
+        display: inline-block;
+        background-color: #2563eb;
+        color: #ffffff;
+        padding: 12px 30px;
+        text-decoration: none;
+        border-radius: 4px;
+        margin: 20px 0;
+        font-weight: bold;
+      }
+      .cta-button:hover {
+        background-color: #1d4ed8;
+      }
+      .footer {
+        color: #999;
+        font-size: 12px;
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+      }
+      .success-icon {
+        font-size: 48px;
+        margin-bottom: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="success-icon">✓</div>
+      <h1>Welcome to {{organizationName}}!</h1>
+
+      <p>Hi {{email}},</p>
+
+      <p>
+        Your invitation has been accepted and your account has been created successfully.
+        You're now a member of <strong>{{organizationName}}</strong>!
+      </p>
+
+      <p>You can now log in and start collaborating with your team:</p>
+
+      <a href="{{loginUrl}}" class="cta-button">Go to Login</a>
+
+      <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
+
+      <div class="footer">
+        <p>
+          © 2024 SAAS Management Platform. All rights reserved.<br>
+          If you have any questions, please contact support.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
