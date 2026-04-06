@@ -1,29 +1,89 @@
-import { KanbanBoard } from './components/KanbanBoard';
-import { ActivityFeed } from './components/ActivityFeed';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+import { Projects } from './pages/Projects';
+import { ProjectDetails } from './pages/ProjectDetails';
+import { Auth } from './pages/Auth';
+import { AuthProvider } from './context/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
+
+// Custom modern theme tailored for the SAAS app
+const theme = createTheme({
+  palette: {
+    mode: 'light',
+    primary: {
+      main: '#000000', // Linear-like stark primary
+      light: '#333333',
+      dark: '#000000',
+    },
+    background: {
+      default: '#FAFAFA', // Soft off-white
+      paper: '#FFFFFF',
+    },
+    text: {
+      primary: '#111827',
+      secondary: '#6B7280',
+    },
+    divider: '#E5E7EB',
+    action: {
+      hover: '#F3F4F6',
+      selected: '#F3F4F6',
+    }
+  },
+  typography: {
+    fontFamily: '"Outfit", "Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    h4: {
+      fontWeight: 700,
+    },
+    h6: {
+      fontWeight: 600,
+    },
+    button: {
+      textTransform: 'none',
+      fontWeight: 500,
+    },
+  },
+  shape: {
+    borderRadius: 12,
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          boxShadow: 'none',
+          '&:hover': {
+            boxShadow: 'none',
+          },
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          borderRadius: 16,
+          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+        },
+      },
+    },
+  },
+});
 
 function App() {
-  // TODO: Get these from routing/context/auth
-  const orgId = 'your-org-id'; // Replace with actual org ID
-  const projectId = 'your-project-id'; // Replace with actual project ID
-
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Kanban Board</h1>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Kanban Board - takes up 3 columns on large screens */}
-          <div className="lg:col-span-3">
-            <KanbanBoard orgId={orgId} projectId={projectId} />
-          </div>
-
-          {/* Activity Feed - takes up 1 column on large screens */}
-          <div className="lg:col-span-1">
-            <ActivityFeed orgId={orgId} projectId={projectId} />
-          </div>
-        </div>
-      </div>
-    </div>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<Auth />} />
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<Projects />} />
+              <Route path="/projects/:projectId" element={<ProjectDetails />} />
+            </Route>
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

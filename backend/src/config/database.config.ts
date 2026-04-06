@@ -2,6 +2,7 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import * as dotenv from 'dotenv';
 import { User } from '../modules/users/entities/user.entity';
 import { Subscription } from '../modules/subscriptions/entities/subscription.entity';
+import { SubscriptionPlan } from '../modules/subscriptions/entities/subscription-plan.entity';
 import { Organization } from '../modules/organizations/entities/organization.entity';
 import { OrganizationInvite } from '../modules/organizations/entities/organization-invite.entity';
 import { AuditLog } from '../common/entities/audit-log.entity';
@@ -21,6 +22,7 @@ export const dataSourceOptions: DataSourceOptions = {
   entities: [
     User,
     Subscription,
+    SubscriptionPlan,
     Organization,
     OrganizationInvite,
     AuditLog,
