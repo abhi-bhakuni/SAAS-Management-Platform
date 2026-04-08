@@ -1,4 +1,20 @@
 import React, { useState, useEffect } from 'react';
+import { 
+  Box, 
+  Typography, 
+  List, 
+  ListItem, 
+  ListItemAvatar, 
+  ListItemText, 
+  Divider,
+  Fade
+} from '@mui/material';
+import HistoryIcon from '@mui/icons-material/History';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { socketService } from '../services/socket';
 import type { ActivityEvent } from '../services/socket';
 
@@ -7,20 +23,32 @@ interface ActivityFeedProps {
   projectId: string;
 }
 
+const getActivityIcon = (type: ActivityEvent['type']) => {
+  const iconStyle = { fontSize: 18, color: 'text.secondary' };
+  switch (type) {
+    case 'task_created': return <AddCircleOutlineIcon sx={{ ...iconStyle, color: '#4ADE80' }} />; // Green
+    case 'task_updated': return <EditOutlinedIcon sx={{ ...iconStyle, color: '#60A5FA' }} />; // Blue
+    case 'task_moved': return <SwapHorizIcon sx={{ ...iconStyle, color: '#FACC15' }} />; // Yellow
+    case 'task_assigned': return <PersonAddOutlinedIcon sx={{ ...iconStyle, color: '#C084FC' }} />; // Purple
+    case 'task_deleted': return <DeleteOutlineIcon sx={{ ...iconStyle, color: '#EF4444' }} />; // Red
+    default: return <HistoryIcon sx={iconStyle} />;
+  }
+};
+
 export const ActivityFeed: React.FC<ActivityFeedProps> = ({ orgId, projectId }) => {
   const [activities, setActivities] = useState<ActivityEvent[]>([]);
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
     // Connect to socket when component mounts
-    socketService.connect(orgId, projectId, 'current-user-id'); // TODO: Get actual user ID
+    socketService.connect(orgId, projectId, 'current-user-id');
 
     // Listen for connection changes
     const unsubscribeConnection = socketService.onConnectionChange(setIsConnected);
 
     // Listen for activity events
     const unsubscribeActivity = socketService.onActivity((event: ActivityEvent) => {
-      setActivities(prev => [event, ...prev.slice(0, 49)]); // Keep last 50 activities
+      setActivities(prev => [{ ...event, timestamp: new Date() }, ...prev.slice(0, 49)]);
     });
 
     return () => {
@@ -31,68 +59,104 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ orgId, projectId }) 
   }, [orgId, projectId]);
 
   const formatTimestamp = (timestamp: Date) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
+    const diffMs = new Date().getTime() - new Date(timestamp).getTime();
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
 
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
-  };
-
-  const getActivityIcon = (type: ActivityEvent['type']) => {
-    switch (type) {
-      case 'task_created':
-        return '➕';
-      case 'task_updated':
-        return '✏️';
-      case 'task_moved':
-        return '↗️';
-      case 'task_assigned':
-        return '👤';
-      case 'task_deleted':
-        return '🗑️';
-      default:
-        return '📝';
-    }
+    return new Date(timestamp).toLocaleDateString();
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Activity Feed</h3>
-        <div className={`flex items-center space-x-2 text-sm ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
-          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-600' : 'bg-red-600'}`}></div>
-          <span>{isConnected ? 'Live' : 'Offline'}</span>
-        </div>
-      </div>
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      height: '100%',
+      backgroundColor: '#18181B', // Requested background
+      color: 'text.primary'
+    }}>
+      {/* Header */}
+      <Box sx={{ 
+        p: 2.5, 
+        borderBottom: '1px solid', 
+        borderColor: 'rgba(255, 255, 255, 0.05)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <HistoryIcon sx={{ color: 'text.disabled', fontSize: 20 }} />
+          <Typography variant="body1" fontWeight={700} sx={{ letterSpacing: '0.01em' }}>
+            Project Activity
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ 
+            width: 8, 
+            height: 8, 
+            borderRadius: '50%', 
+            backgroundColor: isConnected ? '#4ADE80' : '#EF4444',
+            boxShadow: isConnected ? '0 0 10px rgba(74, 222, 128, 0.4)' : 'none'
+          }} />
+          <Typography variant="caption" sx={{ color: 'text.disabled', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {isConnected ? 'Live' : 'Offline'}
+          </Typography>
+        </Box>
+      </Box>
 
-      <div className="space-y-3 max-h-96 overflow-y-auto">
+      {/* Activity List */}
+      <List sx={{ flex: 1, overflowY: 'auto', p: 0 }}>
         {activities.length === 0 ? (
-          <div className="text-gray-500 text-center py-8">
-            No recent activity
-          </div>
+          <Box sx={{ p: 4, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.disabled">No recent activity</Typography>
+          </Box>
         ) : (
-          activities.map((activity) => (
-            <div key={activity.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-              <div className="text-lg">{getActivityIcon(activity.type)}</div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-900">{activity.message}</p>
-                <div className="flex items-center space-x-2 mt-1">
-                  <span className="text-xs text-gray-500">{activity.userName}</span>
-                  <span className="text-xs text-gray-400">•</span>
-                  <span className="text-xs text-gray-400">{formatTimestamp(activity.timestamp)}</span>
-                </div>
-              </div>
-            </div>
+          activities.map((activity, index) => (
+            <Fade in={true} key={activity.id} style={{ transitionDelay: `${index * 50}ms` }}>
+              <Box>
+                <ListItem sx={{ 
+                  py: 2, 
+                  px: 2.5, 
+                  alignItems: 'flex-start',
+                  '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.02)' }
+                }}>
+                  <ListItemAvatar sx={{ minWidth: 40 }}>
+                    <Box sx={{ 
+                      width: 32, 
+                      height: 32, 
+                      borderRadius: '8px', 
+                      backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid',
+                      borderColor: 'rgba(255, 255, 255, 0.05)'
+                    }}>
+                      {getActivityIcon(activity.type)}
+                    </Box>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={
+                      <Typography variant="body2" color="#FFFFFF" sx={{ lineHeight: 1.5 }}>
+                        <Box component="span" sx={{ fontWeight: 700, mr: 0.5 }}>{activity.userName}</Box>
+                        {activity.message}
+                      </Typography>
+                    }
+                    secondary={
+                      <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.5, fontSize: '0.7rem' }}>
+                        {formatTimestamp(activity.timestamp)}
+                      </Typography>
+                    }
+                  />
+                </ListItem>
+                <Divider sx={{ mx: 2.5, borderColor: 'rgba(255, 255, 255, 0.03)' }} />
+              </Box>
+            </Fade>
           ))
         )}
-      </div>
-    </div>
+      </List>
+    </Box>
   );
 };

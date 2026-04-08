@@ -12,8 +12,6 @@ import {
   TableContainer, 
   TableHead, 
   TableRow,
-  Chip,
-  Avatar,
   IconButton,
   Drawer,
   TextField,
@@ -22,11 +20,9 @@ import {
   DialogContent,
   DialogActions,
   Select,
-  MenuItem as SelectItem, // rename to avoid conflict with Menu -> MenuItem
+  MenuItem as SelectItem,
   FormControl,
-  InputLabel
 } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddIcon from '@mui/icons-material/Add';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
@@ -35,8 +31,15 @@ import { AssigneeSelect } from '../components/AssigneeSelect';
 import type { UserOption } from '../components/AssigneeSelect';
 import { TaskStatusSelect } from '../components/TaskStatusSelect';
 import { TaskRow } from '../components/TaskRow';
+import { Sidebar } from '../components/Sidebar';
+import { MOCK_TASKS, MOCK_PROJECTS } from '../services/mockData';
 
 import type { Task, TaskStatus, TaskPriority } from '../types/task';
+import { KanbanBoard } from '../components/KanbanBoard';
+import { ActivityFeed } from '../components/ActivityFeed';
+import ViewListIcon from '@mui/icons-material/ViewList';
+import ViewWeekIcon from '@mui/icons-material/ViewWeek';
+import HistoryIcon from '@mui/icons-material/History';
 
 // Removed TaskLocal and mockTasks as we move to real backend data
 
@@ -63,6 +66,8 @@ export function ProjectDetails() {
     dueDate: ''
   });
   const [selectedAssignee, setSelectedAssignee] = useState<UserOption>({ id: 'unassigned', name: 'Unassigned', avatar: '' });
+  const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
+  const [isActivityOpen, setIsActivityOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -75,26 +80,35 @@ export function ProjectDetails() {
           
           setTasks((tasksData as any).data || tasksData);
           
-          // Map backend users to UserOption format
           const mappedUsers = usersData.map((u: any) => ({
             id: u.id,
             firstName: u.firstName,
             lastName: u.lastName,
             name: `${u.firstName} ${u.lastName}`,
             email: u.email,
-            avatar: '' // backend hasn't provided avatar yet
+            avatar: ''
           }));
           setAssignableUsers([{ id: 'unassigned', name: 'Unassigned', avatar: '' }, ...mappedUsers]);
         } catch (error) {
           console.error("Failed to fetch project details", error);
         }
+      } else if (!user) {
+        // Guest mode: use mock tasks
+        setTasks(MOCK_TASKS);
+        setAssignableUsers([{ id: 'unassigned', name: 'Unassigned', avatar: '' }]);
       }
       setIsLoading(false);
     };
     fetchData();
-  }, [user?.selectedOrgId, projectId]);
+  }, [user?.selectedOrgId, user, projectId]);
 
-  const handleOpenAddModal = () => setIsAddModalOpen(true);
+  const handleOpenAddModal = () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    setIsAddModalOpen(true);
+  };
   const handleCloseAddModal = () => {
     setIsAddModalOpen(false);
     setNewTask({ title: '', description: '', status: 'todo', priority: 'medium', dueDate: '' });
@@ -126,6 +140,10 @@ export function ProjectDetails() {
   };
 
   const updateTaskStatus = async (taskId: string, newStatus: TaskStatus) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
     if (!user?.selectedOrgId || !projectId) return;
     try {
       // Optimistic update
@@ -137,197 +155,388 @@ export function ProjectDetails() {
       await taskApi.updateTaskStatus(user.selectedOrgId, projectId, taskId, newStatus);
     } catch (error) {
       console.error("Failed to update status", error);
-      // Revert on failure if needed (omitted for brevity)
     }
   };
 
-  // Helpers for Priority
-  const getPriorityColor = (priority: TaskPriority) => {
-    switch(priority) {
-      case 'low': return 'default';
-      case 'medium': return 'info';
-      case 'high': return 'warning';
-      case 'urgent': return 'error';
-    }
+  const handleTasksOrderChange = (newTasks: Task[]) => {
+    setTasks(newTasks);
+    // TODO: Persistence for order if needed
   };
+
+
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'background.default' }}>
+    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden', backgroundColor: 'background.default' }}>
+      <Sidebar />
+      <Box sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
       
       {/* Top Header Section */}
       <Box sx={{ 
         borderBottom: '1px solid', 
-        borderColor: 'divider', 
-        backgroundColor: 'background.paper',
+        borderColor: 'rgba(255, 255, 255, 0.05)', 
+        backgroundColor: '#0F0F11',
         px: { xs: 2, md: 4 },
-        py: 3
+        py: 2.5
       }}>
-        <Button 
-          startIcon={<ArrowBackIcon fontSize="small" />} 
-          onClick={() => navigate('/')}
-          sx={{ mb: 2, color: 'text.secondary', textTransform: 'none', px: 0, minWidth: 0, '&:hover': { backgroundColor: 'transparent', color: 'text.primary' } }}
-        >
-          Back to Projects
-        </Button>
-        
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Box>
-            <Typography variant="h4" fontWeight="700" color="text.primary" gutterBottom>
-              {projectId === 'proj-1' ? 'Website Redesign' : 'Project Alpha'}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Typography variant="body2" sx={{ color: 'text.disabled', fontWeight: 500, cursor: 'pointer', '&:hover': { color: 'text.secondary' } }} onClick={() => navigate('/')}>
+              Workspaces
             </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Managing tasks and progress for the current timeline.
+            <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.2)' }}>/</Typography>
+            <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 600 }}>
+              {projectId?.startsWith('mock-') 
+                ? (MOCK_PROJECTS.find((p: any) => p.id === projectId)?.name || 'Project') 
+                : 'Project Details'}
             </Typography>
           </Box>
-          <Button 
-            variant="contained" 
-            disableElevation
-            startIcon={<AddIcon />}
-            onClick={handleOpenAddModal}
-            sx={{ 
+          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+            <Box sx={{ 
+              display: 'flex', 
+              backgroundColor: 'rgba(255, 255, 255, 0.03)', 
               borderRadius: '8px', 
-              textTransform: 'none', 
-              fontWeight: 500,
-              backgroundColor: 'text.primary',
-              color: 'background.paper',
-              '&:hover': { backgroundColor: 'grey.800' }
-            }}
-          >
-            Add Task
-          </Button>
+              p: 0.5,
+              border: '1px solid',
+              borderColor: 'rgba(255, 255, 255, 0.05)',
+              mr: 1
+            }}>
+              <IconButton 
+                size="small" 
+                onClick={() => setViewMode('list')}
+                sx={{ 
+                  borderRadius: '6px',
+                  color: viewMode === 'list' ? '#FFFFFF' : 'text.disabled',
+                  backgroundColor: viewMode === 'list' ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
+                  '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.08)' }
+                }}
+              >
+                <ViewListIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+              <IconButton 
+                size="small" 
+                onClick={() => setViewMode('board')}
+                sx={{ 
+                  borderRadius: '6px',
+                  color: viewMode === 'board' ? '#FFFFFF' : 'text.disabled',
+                  backgroundColor: viewMode === 'board' ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
+                  '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.08)' }
+                }}
+              >
+                <ViewWeekIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Box>
+            <IconButton 
+              onClick={() => setIsActivityOpen(true)}
+              sx={{ 
+                borderRadius: '8px', 
+                backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid',
+                borderColor: 'rgba(255, 255, 255, 0.05)',
+                color: 'text.secondary',
+                mr: 1,
+                '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)', color: '#FFFFFF' }
+              }}
+            >
+              <HistoryIcon sx={{ fontSize: 20 }} />
+            </IconButton>
+            <Button 
+              variant="contained" 
+              disableElevation
+              startIcon={<AddIcon />}
+              onClick={handleOpenAddModal}
+              sx={{ 
+                borderRadius: '6px', 
+                textTransform: 'none', 
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                backgroundColor: '#FFFFFF',
+                color: '#000000',
+                px: 2,
+                '&:hover': { backgroundColor: '#E2E2E2' }
+              }}
+            >
+              Add Task
+            </Button>
+          </Box>
         </Box>
 
         {/* Filter Bar */}
-        <Box sx={{ display: 'flex', gap: 2, mt: 4 }}>
-          <Button startIcon={<FilterListIcon />} size="small" sx={{ textTransform: 'none', color: 'text.secondary', borderRadius: '6px', border: '1px solid', borderColor: 'divider' }}>
-            Filter
-          </Button>
-          <Button size="small" sx={{ textTransform: 'none', color: 'text.secondary', borderRadius: '6px' }}>Status</Button>
-          <Button size="small" sx={{ textTransform: 'none', color: 'text.secondary', borderRadius: '6px' }}>Assignee</Button>
-          <Button size="small" sx={{ textTransform: 'none', color: 'text.secondary', borderRadius: '6px' }}>Priority</Button>
-        </Box>
-      </Box>
-
-      {/* Main Content Area */}
-      <Box sx={{ flex: 1, overflowY: 'auto', p: { xs: 2, md: 4 } }}>
-        <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
-          
-          {isLoading ? (
-            <Box sx={{ textAlign: 'center', py: 10, backgroundColor: 'background.paper', borderRadius: '12px', border: '1px dashed', borderColor: 'divider' }}>
-              <Typography variant="body1" color="text.secondary">Loading tasks...</Typography>
-            </Box>
-          ) : tasks.length === 0 ? (
-            <Box sx={{ textAlign: 'center', py: 10, backgroundColor: 'background.paper', borderRadius: '12px', border: '1px dashed', borderColor: 'divider' }}>
-              <ReceiptLongOutlinedIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
-              <Typography variant="h6" fontWeight="600" color="text.primary" gutterBottom>
-                No tasks yet
-              </Typography>
-              <Typography variant="body2" color="text.secondary" mb={3}>
-                Create your first task to get started.
-              </Typography>
-              <Button onClick={handleOpenAddModal} variant="outlined" startIcon={<AddIcon />} sx={{ borderRadius: '8px', textTransform: 'none' }}>
-                Create Task
-              </Button>
-            </Box>
-          ) : (
-            <TableContainer sx={{ 
-              backgroundColor: 'background.paper', 
-              borderRadius: '12px', 
+        <Box sx={{ display: 'flex', gap: 1, mt: 3 }}>
+          <Button 
+            startIcon={<FilterListIcon sx={{ fontSize: 16 }} />} 
+            size="small" 
+            sx={{ 
+              textTransform: 'none', 
+              color: 'text.secondary', 
+              borderRadius: '6px', 
               border: '1px solid', 
-              borderColor: 'divider',
-              boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)'
-            }}>
-              <Table sx={{ minWidth: 650 }}>
-                <TableHead sx={{ backgroundColor: 'background.default' }}>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 600, color: 'text.secondary', fontSize: '0.8rem', borderBottom: '1px solid', borderColor: 'divider' }}>Task</TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: 'text.secondary', fontSize: '0.8rem', borderBottom: '1px solid', borderColor: 'divider' }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: 'text.secondary', fontSize: '0.8rem', borderBottom: '1px solid', borderColor: 'divider' }}>Assignee</TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: 'text.secondary', fontSize: '0.8rem', borderBottom: '1px solid', borderColor: 'divider' }}>Priority</TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: 'text.secondary', fontSize: '0.8rem', borderBottom: '1px solid', borderColor: 'divider' }}>Due Date</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {tasks.map((task) => (
-                    <TaskRow 
-                      key={task.id}
-                      task={task}
-                      isSelected={selectedTask?.id === task.id}
-                      onClick={() => handleRowClick(task)}
-                      onStatusChange={(newStatus) => updateTaskStatus(task.id, newStatus)}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
+              borderColor: 'rgba(255, 255, 255, 0.1)',
+              px: 1.5,
+              fontSize: '0.8rem',
+              '&:hover': { borderColor: 'rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.03)' }
+            }}
+          >
+            Filters
+          </Button>
+          <Box sx={{ display: 'flex', gap: 1, ml: 1 }}>
+            {['Status', 'Assignee', 'Priority'].map((label) => (
+              <Button 
+                key={label}
+                size="small" 
+                sx={{ 
+                  textTransform: 'none', 
+                  color: 'text.disabled', 
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  px: 1,
+                  '&:hover': { color: 'text.secondary', backgroundColor: 'rgba(255, 255, 255, 0.03)' }
+                }}
+              >
+                {label}
+              </Button>
+            ))}
+          </Box>
         </Box>
       </Box>
 
-      {/* Task Edit Side Panel */}
-      <Drawer
-        anchor="right"
-        open={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        PaperProps={{ sx: { width: { xs: '100%', sm: 400 }, p: 3, borderLeft: '1px solid', borderColor: 'divider' } }}
-        elevation={0}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="subtitle2" color="text.secondary">{selectedTask?.id}</Typography>
-          <IconButton onClick={() => setIsDrawerOpen(false)} size="small"><CloseIcon /></IconButton>
-        </Box>
-        
-        <Typography variant="h5" fontWeight="700" color="text.primary" mb={4}>
-          {selectedTask?.title}
-        </Typography>
+        {/* Main Content Area */}
+        <Box sx={{ flex: 1, overflowY: 'auto', p: { xs: 2, md: 4 } }}>
+          <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
+            
+            {/* Project Title and Description */}
+            <Box sx={{ mb: 5 }}>
+              <Typography variant="h4" fontWeight="800" sx={{ letterSpacing: '-0.02em', mb: 1 }}>
+                {projectId?.startsWith('mock-') 
+                  ? (MOCK_PROJECTS.find((p: any) => p.id === projectId)?.name || 'Project Overview') 
+                  : 'Project Workspace'}
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 700, lineHeight: 1.6 }}>
+                {projectId?.startsWith('mock-') 
+                  ? (MOCK_PROJECTS.find((p: any) => p.id === projectId)?.description || 'Collaborate with your team to deliver high-impact results through this dedicated workspace.') 
+                  : 'Collaborate with your team to deliver high-impact results through this dedicated workspace.'}
+              </Typography>
+            </Box>
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Typography variant="body2" color="text.secondary" sx={{ width: 100 }}>Status</Typography>
-            {selectedTask && (
-              <TaskStatusSelect 
-                value={selectedTask.status}
-                onChange={(newStatus) => updateTaskStatus(selectedTask.id, newStatus)}
+            {isLoading ? (
+              <Box sx={{ textAlign: 'center', py: 10, backgroundColor: 'rgba(255, 255, 255, 0.01)', borderRadius: '16px', border: '1px dashed', borderColor: 'rgba(255, 255, 255, 0.05)' }}>
+                <Typography variant="body1" color="text.secondary">Loading your workspace...</Typography>
+              </Box>
+            ) : tasks.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 12, backgroundColor: 'rgba(255, 255, 255, 0.01)', borderRadius: '16px', border: '1px dashed', borderColor: 'rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <Box sx={{ p: 2, borderRadius: '12px', backgroundColor: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', mb: 3 }}>
+                  <ReceiptLongOutlinedIcon sx={{ fontSize: 32, color: 'text.disabled' }} />
+                </Box>
+                <Typography variant="h6" fontWeight="700" color="text.primary" gutterBottom>
+                  The list is empty
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 4, maxWidth: 320, lineHeight: 1.6 }}>
+                  You haven't added any tasks yet. Launch your first task to start tracking progress.
+                </Typography>
+                <Button onClick={handleOpenAddModal} variant="outlined" startIcon={<AddIcon />} sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700, borderColor: 'rgba(255, 255, 255, 0.1)', color: '#FFFFFF', px: 3 }}>
+                  Create Task
+                </Button>
+              </Box>
+            ) : viewMode === 'list' ? (
+              <TableContainer sx={{ 
+                backgroundColor: '#0F0F11', 
+                borderRadius: '16px', 
+                border: '1px solid', 
+                borderColor: 'rgba(255, 255, 255, 0.05)',
+                overflow: 'hidden'
+              }}>
+                <Table sx={{ minWidth: 650 }}>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700, color: 'text.disabled', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid', borderColor: 'rgba(255, 255, 255, 0.05)', py: 1.5, px: 3 }}>Task Name</TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: 'text.disabled', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid', borderColor: 'rgba(255, 255, 255, 0.05)', py: 1.5, px: 3 }}>Status</TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: 'text.disabled', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid', borderColor: 'rgba(255, 255, 255, 0.05)', py: 1.5, px: 3 }}>Assignee</TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: 'text.disabled', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid', borderColor: 'rgba(255, 255, 255, 0.05)', py: 1.5, px: 3 }}>Priority</TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: 'text.disabled', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid', borderColor: 'rgba(255, 255, 255, 0.05)', py: 1.5, px: 3 }}>Due date</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {tasks.map((task) => (
+                      <TaskRow 
+                        key={task.id}
+                        task={task}
+                        isSelected={selectedTask?.id === task.id}
+                        onClick={() => handleRowClick(task)}
+                        onStatusChange={(newStatus) => updateTaskStatus(task.id, newStatus)}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            ) : (
+              <KanbanBoard 
+                tasks={tasks}
+                onTaskMove={updateTaskStatus}
+                onTasksOrderChange={handleTasksOrderChange}
               />
             )}
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Typography variant="body2" color="text.secondary" sx={{ width: 100 }}>Assignee</Typography>
-            {selectedTask && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Avatar sx={{ width: 24, height: 24, fontSize: '0.7rem' }}>
-                  {selectedTask.assignedToUser?.firstName?.[0] || 'U'}
-                </Avatar>
-                <Typography variant="body2">{selectedTask.assignedToUser?.firstName || 'Unassigned'}</Typography>
-              </Box>
-            )}
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Typography variant="body2" color="text.secondary" sx={{ width: 100 }}>Priority</Typography>
-            {selectedTask && (
-              <Chip label={selectedTask.priority.toUpperCase()} size="small" color={getPriorityColor(selectedTask.priority)} sx={{ borderRadius: '6px', fontWeight: 600, height: 24, fontSize: '0.7rem' }} />
-            )}
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Typography variant="body2" color="text.secondary" sx={{ width: 100 }}>Due Date</Typography>
-            <Typography variant="body2">
-              {selectedTask?.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString() : 'No date'}
-            </Typography>
-          </Box>
         </Box>
 
-        <Divider sx={{ my: 4 }} />
-        
-        <Typography variant="subtitle2" fontWeight="600" mb={1}>Description</Typography>
-        <TextField
-          multiline
-          fullWidth
-          rows={4}
-          variant="outlined"
-          placeholder="Add a more detailed description..."
-          sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px', fontSize: '0.9rem' } }}
-        />
-      </Drawer>
+        {/* Task Edit Side Panel */}
+        <Drawer
+          anchor="right"
+          open={isDrawerOpen}
+          onClose={() => setIsDrawerOpen(false)}
+          PaperProps={{ 
+            sx: { 
+              width: { xs: '100%', sm: 460 }, 
+              p: 0, 
+              backgroundColor: '#18181B', 
+              borderLeft: '1px solid', 
+              borderColor: 'rgba(255, 255, 255, 0.05)',
+              boxShadow: '-10px 0 40px rgba(0,0,0,0.6)'
+            } 
+          }}
+          elevation={0}
+        >
+          {/* Header */}
+          <Box sx={{ 
+            p: 3, 
+            pb: 2, 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.05)'
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <ReceiptLongOutlinedIcon sx={{ color: 'text.disabled', fontSize: 18 }} />
+              <Typography variant="caption" color="text.disabled" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                TASK DETAILS {selectedTask?.id && `• ${selectedTask.id.slice(0, 8)}`}
+              </Typography>
+            </Box>
+            <IconButton onClick={() => setIsDrawerOpen(false)} size="small" sx={{ color: 'text.disabled', '&:hover': { color: '#FFFFFF' } }}>
+              <CloseIcon sx={{ fontSize: 20 }} />
+            </IconButton>
+          </Box>
+          
+          <Box sx={{ p: 4, overflowY: 'auto', flexGrow: 1 }}>
+            {/* Title - Edit Mode */}
+            <Typography variant="h5" fontWeight="800" color="text.primary" mb={4} sx={{ letterSpacing: '-0.01em' }}>
+              {selectedTask?.title}
+            </Typography>
+
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: 3.5,
+              backgroundColor: 'rgba(255, 255, 255, 0.02)',
+              p: 3,
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.05)'
+            }}>
+              {/* Properties Grid inside Drawer */}
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.disabled" sx={{ width: 120, fontWeight: 600 }}>Status</Typography>
+                {selectedTask && (
+                  <TaskStatusSelect 
+                    value={selectedTask.status}
+                    onChange={(newStatus) => updateTaskStatus(selectedTask.id, newStatus)}
+                  />
+                )}
+              </Box>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.disabled" sx={{ width: 120, fontWeight: 600 }}>Assignee</Typography>
+                {selectedTask && (
+                  <AssigneeSelect 
+                    value={{
+                      id: selectedTask.assignedToUserId || 'unassigned',
+                      name: selectedTask.assignedToUser ? `${selectedTask.assignedToUser.firstName} ${selectedTask.assignedToUser.lastName}` : 'Unassigned',
+                      avatar: ''
+                    }}
+                    options={assignableUsers}
+                    onChange={(_u) => {
+                      // Logic would go here to update the task in the backend
+                    }}
+                  />
+                )}
+              </Box>
+
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.disabled" sx={{ width: 120, fontWeight: 600 }}>Priority</Typography>
+                {selectedTask && (
+                  <FormControl size="small" sx={{ width: 120 }}>
+                    <Select
+                      value={selectedTask.priority}
+                      sx={{ 
+                        borderRadius: '6px', 
+                        fontSize: '0.8rem', 
+                        fontWeight: 600,
+                        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                        '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.1)' }
+                      }}
+                    >
+                      <SelectItem value="low"><Typography variant="body2">Low</Typography></SelectItem>
+                      <SelectItem value="medium"><Typography variant="body2">Medium</Typography></SelectItem>
+                      <SelectItem value="high"><Typography variant="body2">High</Typography></SelectItem>
+                      <SelectItem value="urgent"><Typography variant="body2">Urgent</Typography></SelectItem>
+                    </Select>
+                  </FormControl>
+                )}
+              </Box>
+
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.disabled" sx={{ width: 120, fontWeight: 600 }}>Due Date</Typography>
+                <TextField
+                  type="date"
+                  size="small"
+                  sx={{ 
+                    width: 160,
+                    '& .MuiOutlinedInput-root': { 
+                      borderRadius: '6px', 
+                      fontSize: '0.8rem',
+                      fontWeight: 500,
+                      backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                      '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.1)' }
+                    } 
+                  }}
+                  value={selectedTask?.dueDate ? new Date(selectedTask.dueDate).toISOString().split('T')[0] : ''}
+                />
+              </Box>
+            </Box>
+
+            <Divider sx={{ my: 4, opacity: 0.05 }} />
+            
+            <Typography variant="subtitle2" fontWeight="700" color="text.primary" mb={1.5}>Description</Typography>
+            <TextField
+              multiline
+              fullWidth
+              rows={6}
+              variant="outlined"
+              placeholder="Add details about this task..."
+              defaultValue={selectedTask?.description}
+              sx={{ 
+                '& .MuiOutlinedInput-root': { 
+                  borderRadius: '10px', 
+                  fontSize: '0.9rem',
+                  lineHeight: 1.6,
+                  backgroundColor: 'rgba(255, 255, 255, 0.01)',
+                  '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.05)' },
+                  '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.15)' },
+                  '&.Mui-focused fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' }
+                } 
+              }}
+            />
+          </Box>
+          
+          {/* Action Footer */}
+          <Box sx={{ 
+            p: 3, 
+            borderTop: '1px solid rgba(255, 255, 255, 0.05)', 
+            display: 'flex', 
+            justifyContent: 'flex-end',
+            gap: 2
+          }}>
+            <Button size="small" sx={{ textTransform: 'none', color: 'text.disabled' }}>Delete Task</Button>
+            <Button size="small" variant="contained" disableElevation sx={{ borderRadius: '6px', textTransform: 'none', px: 3, backgroundColor: '#FFFFFF', color: '#000000', fontWeight: 700 }}>Save Changes</Button>
+          </Box>
+        </Drawer>
 
       {/* Add Task Modal */}
       <Dialog 
@@ -338,17 +547,19 @@ export function ProjectDetails() {
           sx: {
             borderRadius: '12px',
             width: '100%',
-            maxWidth: 600,
+            maxWidth: 500,
+            backgroundColor: '#18181B',
             border: '1px solid',
-            borderColor: 'divider',
-            boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)'
+            borderColor: '#2A2A2E',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
           }
         }}
       >
         <DialogContent sx={{ p: 4 }}>
+          {/* Title Field - High Prominence */}
           <TextField
             autoFocus
-            placeholder="Task Title"
+            placeholder="What needs to be done?"
             variant="standard"
             fullWidth
             value={newTask.title}
@@ -361,28 +572,55 @@ export function ProjectDetails() {
             }}
             InputProps={{
               disableUnderline: true,
-              sx: { fontSize: '1.5rem', fontWeight: 700, color: 'text.primary', mb: 2 }
+              sx: { 
+                fontSize: '1.4rem', 
+                fontWeight: 600, 
+                color: '#FFFFFF', 
+                mb: 1.5,
+                '& input::placeholder': { color: 'rgba(255, 255, 255, 0.3)', opacity: 1 }
+              }
             }}
           />
           
+          {/* Description Field */}
           <TextField
             placeholder="Add a description..."
-            variant="standard"
+            variant="outlined"
             fullWidth
             multiline
-            rows={3}
+            rows={4}
             value={newTask.description}
             onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-            InputProps={{
-              disableUnderline: true,
-              sx: { fontSize: '0.95rem', color: 'text.secondary', mb: 4, lineHeight: 1.6 }
+            sx={{ 
+              mb: 4,
+              '& .MuiOutlinedInput-root': { 
+                borderRadius: '8px', 
+                fontSize: '0.9rem', 
+                color: 'text.secondary',
+                backgroundColor: '#27272A',
+                '& fieldset': { borderColor: 'transparent' },
+                '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.1)' },
+                '&.Mui-focused fieldset': { borderColor: 'rgba(255, 255, 255, 0.2)' }
+              } 
             }}
           />
 
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+          {/* Properties Grid */}
+          <Box sx={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(2, 1fr)', 
+            gap: 3,
+            backgroundColor: '#27272A',
+            p: 3,
+            borderRadius: '10px',
+            border: '1px solid',
+            borderColor: 'rgba(255, 255, 255, 0.05)'
+          }}>
             {/* Status Field */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', mr: 2, mt: 1 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>Status</Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="caption" color="text.disabled" fontWeight="600" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Status
+              </Typography>
               <TaskStatusSelect 
                 value={newTask.status as TaskStatus}
                 onChange={(s) => setNewTask({ ...newTask, status: s })}
@@ -390,42 +628,84 @@ export function ProjectDetails() {
             </Box>
 
             {/* Priority Field */}
-            <FormControl size="small" sx={{ minWidth: 140 }}>
-              <InputLabel sx={{ fontSize: '0.8rem' }}>Priority</InputLabel>
-              <Select
-                value={newTask.priority}
-                label="Priority"
-                onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as TaskPriority })}
-                sx={{ borderRadius: '8px', fontSize: '0.85rem', fontWeight: 500 }}
-              >
-                <SelectItem value="low"><Chip size="small" label="Low" color="default" sx={{ borderRadius: '4px', height: 20 }} /></SelectItem>
-                <SelectItem value="medium"><Chip size="small" label="Medium" color="info" sx={{ borderRadius: '4px', height: 20 }} /></SelectItem>
-                <SelectItem value="high"><Chip size="small" label="High" color="warning" sx={{ borderRadius: '4px', height: 20 }} /></SelectItem>
-              </Select>
-            </FormControl>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="caption" color="text.disabled" fontWeight="600" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Priority
+              </Typography>
+              <FormControl size="small" fullWidth>
+                <Select
+                  value={newTask.priority}
+                  onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as TaskPriority })}
+                  sx={{ 
+                    borderRadius: '6px', 
+                    fontSize: '0.85rem', 
+                    fontWeight: 500,
+                    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.1)' }
+                  }}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: { backgroundColor: '#18181B', border: '1px solid #2A2A2E', borderRadius: '8px' }
+                    }
+                  }}
+                >
+                  <SelectItem value="low"><Typography variant="body2">Low</Typography></SelectItem>
+                  <SelectItem value="medium"><Typography variant="body2">Medium</Typography></SelectItem>
+                  <SelectItem value="high"><Typography variant="body2">High</Typography></SelectItem>
+                  <SelectItem value="urgent"><Typography variant="body2">Urgent</Typography></SelectItem>
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* Assignee Field */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="caption" color="text.disabled" fontWeight="600" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Assignee
+              </Typography>
+              <AssigneeSelect 
+                value={selectedAssignee} 
+                onChange={(u) => setSelectedAssignee(u)}
+                options={assignableUsers}
+              />
+            </Box>
 
             {/* Due Date Field */}
-            <TextField
-              label="Due Date"
-              type="date"
-              size="small"
-              InputLabelProps={{ shrink: true }}
-              value={newTask.dueDate}
-              onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px', fontSize: '0.85rem', height: 40 } }}
-            />
-            
-            {/* Assignee Select Component */}
-            <AssigneeSelect 
-              value={selectedAssignee} 
-              onChange={(u) => setSelectedAssignee(u)}
-              options={assignableUsers}
-            />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="caption" color="text.disabled" fontWeight="600" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Due Date
+              </Typography>
+              <TextField
+                type="date"
+                size="small"
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                value={newTask.dueDate}
+                onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+                sx={{ 
+                  '& .MuiOutlinedInput-root': { 
+                    borderRadius: '6px', 
+                    fontSize: '0.85rem',
+                    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.1)' }
+                  } 
+                }}
+              />
+            </Box>
           </Box>
-
         </DialogContent>
-        <DialogActions sx={{ px: 4, pb: 3, pt: 1, justifyContent: 'space-between', borderTop: '1px solid', borderColor: 'divider' }}>
-          <Button onClick={handleCloseAddModal} sx={{ color: 'text.secondary', textTransform: 'none', fontWeight: 500, borderRadius: '6px' }}>
+
+        <DialogActions sx={{ px: 4, pb: 4, pt: 0, justifyContent: 'flex-end', gap: 2 }}>
+          <Button 
+            onClick={handleCloseAddModal} 
+            sx={{ 
+              color: 'text.secondary', 
+              textTransform: 'none', 
+              fontWeight: 600, 
+              borderRadius: '6px',
+              fontSize: '0.85rem',
+              '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)', color: '#FFFFFF' }
+            }}
+          >
             Cancel
           </Button>
           <Button 
@@ -436,16 +716,42 @@ export function ProjectDetails() {
             sx={{ 
               borderRadius: '6px', 
               textTransform: 'none', 
-              fontWeight: 500,
-              backgroundColor: 'text.primary',
-              color: 'background.paper',
-              '&:hover': { backgroundColor: 'grey.800' }
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              px: 4,
+              py: 0.8,
+              backgroundColor: '#FFFFFF',
+              color: '#000000',
+              '&:hover': { backgroundColor: '#E2E2E2' },
+              '&.Mui-disabled': { backgroundColor: '#2A2A2E', color: '#52525B' }
             }}
           >
-            Save Task
+            Create Task
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Activity Feed Sidebar */}
+      <Drawer
+        anchor="right"
+        open={isActivityOpen}
+        onClose={() => setIsActivityOpen(false)}
+        PaperProps={{
+          sx: {
+            width: { xs: '100%', sm: 360 },
+            backgroundColor: '#18181B',
+            borderLeft: '1px solid',
+            borderColor: 'rgba(255, 255, 255, 0.05)',
+            boxShadow: '-10px 0 30px rgba(0,0,0,0.5)'
+          }
+        }}
+      >
+        <ActivityFeed 
+          orgId={user?.selectedOrgId || 'demo-org'} 
+          projectId={projectId || 'demo-project'} 
+        />
+      </Drawer>
+    </Box>
     </Box>
   );
 }

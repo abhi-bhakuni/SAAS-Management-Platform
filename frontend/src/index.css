@@ -3,11 +3,7 @@
 @tailwind utilities;
 
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
+  width: 100%;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -16,6 +12,29 @@
 
 body {
   margin: 0;
+  background-color: #0F0F11;
+  color: #EDEDED;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar for Dark Mode */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0F0F11;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2A2A2E;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3F3F46;
 }
 
 h1,

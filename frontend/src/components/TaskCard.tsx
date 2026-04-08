@@ -1,17 +1,26 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { 
+  Box, 
+  Typography, 
+  Avatar, 
+  Tooltip 
+} from '@mui/material';
 import type { Task, TaskPriority } from '../types/task';
 
 interface TaskCardProps {
   task: Task;
 }
 
-const priorityColors: Record<TaskPriority, string> = {
-  low: 'bg-green-100 text-green-800',
-  medium: 'bg-yellow-100 text-yellow-800',
-  high: 'bg-orange-100 text-orange-800',
-  urgent: 'bg-red-100 text-red-800',
+const getPriorityStyles = (priority: TaskPriority) => {
+  switch(priority) {
+    case 'urgent': return { color: '#EF4444', bgColor: 'rgba(239, 68, 68, 0.1)' };
+    case 'high': return { color: '#F59E0B', bgColor: 'rgba(245, 158, 11, 0.1)' };
+    case 'medium': return { color: '#3B82F6', bgColor: 'rgba(59, 130, 246, 0.1)' };
+    case 'low': return { color: '#6B7280', bgColor: 'rgba(107, 114, 128, 0.1)' };
+    default: return { color: '#6B7280', bgColor: 'rgba(107, 114, 128, 0.1)' };
+  }
 };
 
 export const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
@@ -24,52 +33,121 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
     isDragging,
   } = useSortable({ id: task.id });
 
+  const priorityStyle = getPriorityStyles(task.priority);
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    zIndex: isDragging ? 2 : 1,
+    opacity: isDragging ? 0.4 : 1,
   };
 
   return (
-    <div
+    <Box
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      className={`bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${
-        isDragging ? 'opacity-50' : ''
-      }`}
+      sx={{
+        backgroundColor: '#1C1C1F',
+        borderRadius: '10px',
+        p: 2,
+        mb: 2,
+        border: '1px solid',
+        borderColor: isDragging ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+        boxShadow: isDragging 
+          ? '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4)' 
+          : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+        cursor: 'grab',
+        '&:active': { cursor: 'grabbing' },
+        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+        '&:hover': {
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+          transform: isDragging ? undefined : 'translateY(-2px)'
+        }
+      }}
     >
-      <div className="flex items-start justify-between mb-2">
-        <h3 className="font-medium text-gray-900 text-sm leading-tight">
-          {task.title}
-        </h3>
-        <span
-          className={`px-2 py-1 text-xs font-medium rounded-full ${priorityColors[task.priority]}`}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
+        <Typography 
+          variant="body2" 
+          fontWeight={600} 
+          sx={{ 
+            color: '#FFFFFF', 
+            lineHeight: 1.4,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden'
+          }}
         >
-          {task.priority}
-        </span>
-      </div>
+          {task.title}
+        </Typography>
+      </Box>
 
       {task.description && (
-        <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+        <Typography 
+          variant="caption" 
+          sx={{ 
+            color: 'text.disabled', 
+            display: '-webkit-box', 
+            WebkitLineClamp: 2, 
+            WebkitBoxOrient: 'vertical', 
+            overflow: 'hidden',
+            mb: 2,
+            lineHeight: 1.5
+          }}
+        >
           {task.description}
-        </p>
+        </Typography>
       )}
 
-      <div className="flex items-center justify-between text-xs text-gray-500">
-        <div className="flex items-center space-x-2">
-          {task.assignedToUser && (
-            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">
-              {task.assignedToUser.firstName} {task.assignedToUser.lastName}
-            </span>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box 
+            sx={{ 
+              px: 1, 
+              py: 0.25, 
+              borderRadius: '4px', 
+              fontSize: '0.65rem', 
+              fontWeight: 700, 
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              backgroundColor: priorityStyle.bgColor,
+              color: priorityStyle.color,
+              border: '1px solid',
+              borderColor: 'rgba(255, 255, 255, 0.03)'
+            }}
+          >
+            {task.priority}
+          </Box>
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {task.dueDate && (
+            <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.7rem' }}>
+              {new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+            </Typography>
           )}
-        </div>
-        {task.dueDate && (
-          <span className="text-gray-500">
-            Due: {new Date(task.dueDate).toLocaleDateString()}
-          </span>
-        )}
-      </div>
-    </div>
+          {task.assignedToUser && (
+            <Tooltip title={`${task.assignedToUser.firstName} ${task.assignedToUser.lastName}`}>
+              <Avatar 
+                sx={{ 
+                  width: 22, 
+                  height: 22, 
+                  fontSize: '0.65rem', 
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid',
+                  borderColor: 'rgba(255, 255, 255, 0.1)',
+                  color: 'text.primary'
+                }}
+              >
+                {task.assignedToUser.firstName?.[0]}
+              </Avatar>
+            </Tooltip>
+          )}
+        </Box>
+      </Box>
+    </Box>
   );
 };

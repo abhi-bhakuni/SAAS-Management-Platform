@@ -1,40 +1,49 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { Projects } from './pages/Projects';
 import { ProjectDetails } from './pages/ProjectDetails';
+import { Dashboard } from './pages/Dashboard';
+import { GlobalTasks } from './pages/GlobalTasks';
+import { ActivityPage } from './pages/ActivityPage';
+import { Settings } from './pages/Settings';
 import { Auth } from './pages/Auth';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
-// Custom modern theme tailored for the SAAS app
+// Custom modern dark theme for professional SaaS look
 const theme = createTheme({
   palette: {
-    mode: 'light',
+    mode: 'dark',
     primary: {
-      main: '#000000', // Linear-like stark primary
-      light: '#333333',
-      dark: '#000000',
+      main: '#FFFFFF',
+      light: '#FFFFFF',
+      dark: '#E2E2E2',
     },
     background: {
-      default: '#FAFAFA', // Soft off-white
-      paper: '#FFFFFF',
+      default: '#0F0F11', // Deep charcoal-black background
+      paper: '#18181B',   // Slightly lighter card background
     },
     text: {
-      primary: '#111827',
-      secondary: '#6B7280',
+      primary: '#EDEDED',
+      secondary: '#A1A1AA',
     },
-    divider: '#E5E7EB',
+    divider: '#2A2A2E',
     action: {
-      hover: '#F3F4F6',
-      selected: '#F3F4F6',
+      hover: 'rgba(255, 255, 255, 0.05)',
+      selected: 'rgba(255, 255, 255, 0.08)',
     }
   },
   typography: {
-    fontFamily: '"Outfit", "Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Inter", "Outfit", "Segoe UI", "Roboto", "Helvetica", "Arial", sans-serif',
     h4: {
       fontWeight: 700,
+      letterSpacing: '-0.02em',
     },
     h6: {
+      fontWeight: 600,
+      letterSpacing: '-0.01em',
+    },
+    subtitle1: {
       fontWeight: 600,
     },
     button: {
@@ -43,7 +52,7 @@ const theme = createTheme({
     },
   },
   shape: {
-    borderRadius: 12,
+    borderRadius: 10,
   },
   components: {
     MuiButton: {
@@ -60,8 +69,17 @@ const theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: 16,
-          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+          borderRadius: 12,
+          border: '1px solid #2A2A2E',
+          backgroundColor: '#18181B',
+          backgroundImage: 'none', // Remove MUI elevation overlay
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundImage: 'none',
         },
       },
     },
@@ -76,9 +94,21 @@ function App() {
         <Router>
           <Routes>
             <Route path="/login" element={<Auth />} />
+            
+            {/* New Saas Routing Structure */}
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/projects/:projectId" element={<ProjectDetails />} />
+            <Route path="/tasks" element={<GlobalTasks />} />
+            <Route path="/activity" element={<ActivityPage />} />
+            <Route path="/settings" element={<Settings />} />
+            
+            {/* Redirect root to dashboard */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+            {/* Kept for any future strictly private routes */}
             <Route element={<ProtectedRoute />}>
-              <Route path="/" element={<Projects />} />
-              <Route path="/projects/:projectId" element={<ProjectDetails />} />
+              {/* Add strictly private routes here */}
             </Route>
           </Routes>
         </Router>

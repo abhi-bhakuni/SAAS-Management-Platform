@@ -24,9 +24,13 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
+      const hadToken = !!localStorage.getItem('authToken');
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
-      if (window.location.pathname !== '/login') {
+      
+      // Only redirect if the user was previously logged in (session expired)
+      // or if they are on a strictly protected route (which we are relaxing now)
+      if (hadToken && window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
     }

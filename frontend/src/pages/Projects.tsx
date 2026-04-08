@@ -8,7 +8,6 @@ import {
   Button, 
   Card, 
   CardContent, 
-  CardActionArea,
   Avatar,
   AvatarGroup,
   Dialog,
@@ -16,19 +15,12 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
-import CheckBoxOutlinedIcon from '@mui/icons-material/CheckBoxOutlined';
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
-import WidgetsOutlinedIcon from '@mui/icons-material/WidgetsOutlined';
+import { Sidebar } from '../components/Sidebar';
+import { MOCK_PROJECTS } from '../services/mockData';
 
 export function Projects() {
   const navigate = useNavigate();
@@ -42,19 +34,28 @@ export function Projects() {
     const fetchProjects = async () => {
       if (user?.selectedOrgId) {
         try {
-          // The API returns { data: [...], meta: {...} } or just [...]
           const result = await projectsApi.getProjects(user.selectedOrgId);
           setProjects(result.data || result);
         } catch (error) {
           console.error("Failed to fetch projects", error);
         }
+      } else if (!user) {
+        // Guest mode: use mock data
+        setProjects(MOCK_PROJECTS);
       }
       setIsLoading(false);
     };
     fetchProjects();
-  }, [user?.selectedOrgId]);
+  }, [user?.selectedOrgId, user]);
 
-  const handleOpenModal = () => setIsModalOpen(true);
+  const handleOpenModal = () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    setIsModalOpen(true);
+  };
+  
   const handleCloseModal = () => setIsModalOpen(false);
 
   const handleCreateProject = async () => {
@@ -69,102 +70,33 @@ export function Projects() {
     }
   };
 
-  const navItems = [
-    { text: 'Dashboard', icon: <DashboardOutlinedIcon />, active: false },
-    { text: 'Projects', icon: <FolderOutlinedIcon />, active: true },
-    { text: 'Tasks', icon: <CheckBoxOutlinedIcon />, active: false },
-    { text: 'Settings', icon: <SettingsOutlinedIcon />, active: false }
-  ];
-
   return (
-    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden', backgroundColor: 'background.default' }}>
-      
-      {/* Left Sidebar */}
-      <Box sx={{ 
-        width: 260, 
-        borderRight: '1px solid', 
-        borderColor: 'divider', 
-        backgroundColor: 'background.paper',
-        display: 'flex',
-        flexDirection: 'column',
-        py: 3,
-        px: 2
-      }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 4, px: 2, gap: 1.5 }}>
-          <Box sx={{ 
-            width: 32, 
-            height: 32, 
-            borderRadius: '8px', 
-            backgroundColor: 'text.primary', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            color: 'background.paper'
-          }}>
-            <WidgetsOutlinedIcon fontSize="small" />
-          </Box>
-          <Typography variant="subtitle1" fontWeight="600" color="text.primary">
-            Startup Workspace
-          </Typography>
-        </Box>
-
-        <List sx={{ px: 0 }}>
-          {navItems.map((item) => (
-            <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
-              <ListItemButton 
-                selected={item.active}
-                sx={{ 
-                  borderRadius: '8px',
-                  py: 1,
-                  px: 2,
-                  '&.Mui-selected': {
-                    backgroundColor: 'action.selected',
-                    color: 'text.primary',
-                    '& .MuiListItemIcon-root': { color: 'text.primary' }
-                  },
-                  '&:hover': {
-                    backgroundColor: 'action.hover'
-                  }
-                }}
-              >
-                <ListItemIcon sx={{ 
-                  minWidth: 36, 
-                  color: item.active ? 'text.primary' : 'text.secondary',
-                  '& svg': { fontSize: 20 }
-                }}>
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText 
-                  primary={item.text} 
-                  primaryTypographyProps={{ 
-                    fontSize: '0.9rem', 
-                    fontWeight: item.active ? 600 : 500,
-                    color: item.active ? 'text.primary' : 'text.secondary'
-                  }} 
-                />
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
-      </Box>
+    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden', backgroundColor: '#0F0F11' }}>
+      <Sidebar />
 
       {/* Main Content */}
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         
         {/* Top Navigation Bar */}
         <Box sx={{ 
-          height: 64, 
+          height: 60, 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
           px: 4,
           borderBottom: '1px solid',
-          borderColor: 'divider',
-          backgroundColor: 'background.paper'
+          borderColor: 'rgba(255, 255, 255, 0.05)',
+          backgroundColor: '#0F0F11'
         }}>
-          <Typography variant="h6" fontWeight="600" color="text.primary">
-            Projects
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Typography variant="body2" sx={{ color: 'text.disabled', fontWeight: 500, cursor: 'pointer', '&:hover': { color: 'text.secondary' } }} onClick={() => navigate('/dashboard')}>
+              Dashboard
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.2)' }}>/</Typography>
+            <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 600 }}>
+              Projects
+            </Typography>
+          </Box>
           
           <Button 
             variant="contained" 
@@ -172,16 +104,15 @@ export function Projects() {
             startIcon={<AddIcon />}
             onClick={handleOpenModal}
             sx={{ 
-              borderRadius: '8px',
+              borderRadius: '6px',
               textTransform: 'none',
-              fontWeight: 500,
+              fontWeight: 700,
+              fontSize: '0.85rem',
               px: 2,
-              py: 0.8,
-              backgroundColor: 'text.primary',
-              color: 'background.paper',
-              '&:hover': {
-                backgroundColor: 'grey.800',
-              }
+              py: 0.6,
+              backgroundColor: '#FFFFFF',
+              color: '#000000',
+              '&:hover': { backgroundColor: '#E2E2E2' }
             }}
           >
             New Project
@@ -190,33 +121,63 @@ export function Projects() {
 
         {/* Scrollable Area */}
         <Box sx={{ flex: 1, overflowY: 'auto', p: { xs: 3, md: 5 } }}>
-          <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
+          <Box sx={{ maxWidth: 1200 }}>
+            <Box sx={{ mb: 5 }}>
+              <Typography variant="h4" fontWeight="800" sx={{ letterSpacing: '-0.02em', mb: 0.5 }}>
+                Projects
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Manage your team's workflows and launch new initiatives.
+              </Typography>
+            </Box>
             
             {isLoading ? (
               <Box sx={{ textAlign: 'center', py: 12 }}>
-                 <Typography color="text.secondary">Loading projects...</Typography>
+                 <Typography color="text.secondary" variant="body2">Loading projects...</Typography>
               </Box>
             ) : projects.length === 0 ? (
               <Box sx={{ 
                 textAlign: 'center', 
                 py: 12, 
-                backgroundColor: 'background.paper',
+                backgroundColor: 'rgba(255, 255, 255, 0.01)',
                 border: '1px dashed',
-                borderColor: 'divider',
-                borderRadius: '12px'
+                borderColor: 'rgba(255, 255, 255, 0.05)',
+                borderRadius: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center'
               }}>
-                <FolderOutlinedIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
-                <Typography variant="h6" color="text.primary" fontWeight="600" gutterBottom>
-                  No projects yet
+                <Box sx={{ 
+                  p: 2, 
+                  borderRadius: '12px', 
+                  backgroundColor: 'rgba(255, 255, 255, 0.02)', 
+                  mb: 3,
+                  border: '1px solid rgba(255, 255, 255, 0.05)'
+                }}>
+                  <FolderOutlinedIcon sx={{ fontSize: 32, color: 'text.disabled' }} />
+                </Box>
+                <Typography variant="h6" color="text.primary" fontWeight="700" gutterBottom>
+                  Start your first project
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  Create your first project to get started organizing your tasks.
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 4, maxWidth: 320, mx: 'auto', lineHeight: 1.6 }}>
+                  Launch a new project to organize your tasks and collaborate with your team in real-time.
                 </Typography>
                 <Button 
                   variant="outlined" 
                   startIcon={<AddIcon />}
                   onClick={handleOpenModal}
-                  sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 500 }}
+                  sx={{ 
+                    borderRadius: '8px', 
+                    textTransform: 'none', 
+                    fontWeight: 700,
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    color: '#FFFFFF',
+                    px: 3,
+                    '&:hover': {
+                      borderColor: '#FFFFFF',
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                    }
+                  }}
                 >
                   Create Project
                 </Button>
@@ -224,7 +185,11 @@ export function Projects() {
             ) : (
               <Box sx={{ 
                 display: 'grid', 
-                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, 
+                gridTemplateColumns: { 
+                  xs: '1fr', 
+                  sm: 'repeat(2, 1fr)', 
+                  lg: 'repeat(3, 1fr)' 
+                }, 
                 gap: 3 
               }}>
                 {projects.map((project) => (
@@ -235,54 +200,64 @@ export function Projects() {
                       height: '100%', 
                       display: 'flex', 
                       flexDirection: 'column',
-                      borderRadius: '12px',
+                      borderRadius: '16px',
                       border: '1px solid',
-                      borderColor: 'divider',
-                      backgroundColor: 'background.paper',
-                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                      borderColor: 'rgba(255, 255, 255, 0.05)',
+                      backgroundColor: '#18181B',
+                      transition: 'all 0.2s cubic-bezier(0.165, 0.84, 0.44, 1)',
+                      cursor: 'pointer',
                       '&:hover': {
-                        transform: 'translateY(-2px)',
-                        boxShadow: '0 12px 24px -10px rgba(0,0,0,0.06)',
-                        borderColor: 'primary.light'
+                        transform: 'translateY(-6px)',
+                        borderColor: 'rgba(255, 255, 255, 0.15)',
+                        boxShadow: '0 20px 40px -10px rgba(0,0,0,0.5)',
+                        backgroundColor: '#1C1C20'
                       }
                     }}
+                    onClick={() => navigate(`/projects/${project.id}`)}
                   >
-                    <CardActionArea 
-                      onClick={() => navigate(`/projects/${project.id}`)}
-                      sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', p: 1 }}
-                    >
-                      <CardContent sx={{ flexGrow: 1, width: '100%', p: 2 }}>
-                        <Typography variant="subtitle1" fontWeight="600" component="div" sx={{ mb: 1, color: 'text.primary' }}>
-                          {project.name}
-                        </Typography>
+                    <CardContent sx={{ flexGrow: 1, p: 4 }}>
+                      <Typography variant="h6" fontWeight="800" sx={{ mb: 1, color: '#FFFFFF', letterSpacing: '-0.01em' }}>
+                        {project.name}
+                      </Typography>
+                      
+                      <Typography variant="body2" color="text.secondary" sx={{ 
+                        mb: 5, 
+                        display: '-webkit-box', 
+                        WebkitLineClamp: 2, 
+                        WebkitBoxOrient: 'vertical', 
+                        overflow: 'hidden', 
+                        lineHeight: 1.7,
+                        height: '3.4em',
+                        fontSize: '0.875rem'
+                      }}>
+                        {project.description || "Crafting something amazing with this new workspace initialization."}
+                      </Typography>
+ 
+                      <Box sx={{ mt: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <AvatarGroup max={4} sx={{ 
+                          '& .MuiAvatar-root': { 
+                            width: 28, 
+                            height: 28, 
+                            fontSize: '0.75rem', 
+                            borderColor: '#18181B',
+                            borderWidth: 2,
+                            fontWeight: 700,
+                            backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                          } 
+                        }}>
+                          <Avatar alt="Member 1" src={`https://i.pravatar.cc/150?u=${project.id}1`} />
+                          <Avatar alt="Member 2" src={`https://i.pravatar.cc/150?u=${project.id}2`} />
+                          <Avatar sx={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', color: 'text.disabled' }}>+</Avatar>
+                        </AvatarGroup>
                         
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.5 }}>
-                          {project.description}
-                        </Typography>
-
-                        <Box sx={{ mt: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <AvatarGroup max={4} sx={{ 
-                            '& .MuiAvatar-root': { 
-                              width: 24, 
-                              height: 24, 
-                              fontSize: '0.7rem', 
-                              borderColor: 'background.paper',
-                              borderWidth: 2
-                            } 
-                          }}>
-                            {/* Dummy avatars for visual continuity since API members aren't directly nested */}
-                            <Avatar alt="Member 1" src={`https://i.pravatar.cc/150?u=${project.id}0`} />
-                          </AvatarGroup>
-                          
-                          <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary' }}>
-                            <AccessTimeOutlinedIcon sx={{ fontSize: 14, mr: 0.5 }} />
-                            <Typography variant="caption" sx={{ fontWeight: 400 }}>
-                              {new Date(project.updatedAt || project.createdAt || Date.now()).toLocaleDateString()}
-                            </Typography>
-                          </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.disabled', gap: 0.5 }}>
+                          <AccessTimeOutlinedIcon sx={{ fontSize: 14 }} />
+                          <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                            {new Date(project.updatedAt || project.createdAt || Date.now()).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                          </Typography>
                         </Box>
-                      </CardContent>
-                    </CardActionArea>
+                      </Box>
+                    </CardContent>
                   </Card>
                 ))}
               </Box>
@@ -301,29 +276,46 @@ export function Projects() {
             borderRadius: '12px',
             width: '100%',
             maxWidth: 400,
+            backgroundColor: '#18181B',
             border: '1px solid',
-            borderColor: 'divider',
-            boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)'
+            borderColor: '#2A2A2E',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
           }
         }}
       >
-        <DialogTitle sx={{ fontWeight: 600, fontSize: '1rem', pb: 1, pt: 2.5 }}>New Project</DialogTitle>
-        <DialogContent sx={{ pb: 2 }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.25rem', pb: 1, pt: 3, color: '#FFFFFF' }}>
+          Create New Project
+        </DialogTitle>
+        <DialogContent sx={{ pb: 3 }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
+            Give your project a name and a brief description to get started.
+          </Typography>
           <TextField
             autoFocus
             margin="dense"
-            label="Name"
+            label="Project Name"
+            placeholder="e.g. Website Redesign"
             type="text"
             fullWidth
             variant="outlined"
             size="small"
             value={newProject.name}
             onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
-            sx={{ mb: 2, mt: 1, '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+            sx={{ 
+              mb: 3, 
+              mt: 1, 
+              '& .MuiOutlinedInput-root': { 
+                borderRadius: '8px',
+                backgroundColor: '#0F0F11',
+                '& fieldset': { borderColor: '#2A2A2E' },
+                '&:hover fieldset': { borderColor: '#3F3F46' },
+              } 
+            }}
           />
           <TextField
             margin="dense"
             label="Description"
+            placeholder="What is this project about?"
             type="text"
             fullWidth
             variant="outlined"
@@ -332,11 +324,28 @@ export function Projects() {
             size="small"
             value={newProject.description}
             onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
+            sx={{ 
+              '& .MuiOutlinedInput-root': { 
+                borderRadius: '8px',
+                backgroundColor: '#0F0F11',
+                '& fieldset': { borderColor: '#2A2A2E' },
+                '&:hover fieldset': { borderColor: '#3F3F46' },
+              } 
+            }}
           />
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button onClick={handleCloseModal} sx={{ color: 'text.secondary', textTransform: 'none', fontWeight: 500, borderRadius: '6px' }}>
+        <DialogActions sx={{ px: 3, pb: 4, pt: 0, gap: 1.5 }}>
+          <Button 
+            onClick={handleCloseModal} 
+            sx={{ 
+              color: 'text.secondary', 
+              textTransform: 'none', 
+              fontWeight: 600, 
+              borderRadius: '6px',
+              px: 2,
+              '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)', color: '#FFFFFF' }
+            }}
+          >
             Cancel
           </Button>
           <Button 
@@ -347,11 +356,17 @@ export function Projects() {
             sx={{ 
               borderRadius: '6px', 
               textTransform: 'none', 
-              fontWeight: 500,
-              backgroundColor: 'text.primary',
-              color: 'background.paper',
+              fontWeight: 700,
+              px: 3,
+              py: 0.8,
+              backgroundColor: '#FFFFFF',
+              color: '#000000',
               '&:hover': {
-                backgroundColor: 'grey.800',
+                backgroundColor: '#E2E2E2',
+              },
+              '&.Mui-disabled': {
+                backgroundColor: '#2A2A2E',
+                color: '#71717A'
               }
             }}
           >

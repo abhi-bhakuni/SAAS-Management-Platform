@@ -1,6 +1,10 @@
 import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { 
+  Box, 
+  Typography 
+} from '@mui/material';
 import { TaskCard } from './TaskCard';
 import type { Task, TaskStatus } from '../types/task';
 
@@ -11,11 +15,11 @@ interface KanbanColumnProps {
   status: TaskStatus;
 }
 
-const columnColors: Record<TaskStatus, string> = {
-  todo: 'border-l-blue-500',
-  in_progress: 'border-l-yellow-500',
-  in_review: 'border-l-purple-500',
-  done: 'border-l-green-500',
+const statusAccentColors: Record<TaskStatus, string> = {
+  todo: '#FACC15', // Yellow
+  in_progress: '#60A5FA', // Blue
+  in_review: '#C084FC', // Purple
+  done: '#4ADE80', // Green
 };
 
 export const KanbanColumn: React.FC<KanbanColumnProps> = ({
@@ -28,29 +32,77 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({
     id,
   });
 
-  return (
-    <div className="flex flex-col w-80 bg-gray-50 rounded-lg p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="font-semibold text-gray-900">{title}</h2>
-        <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-sm">
-          {tasks.length}
-        </span>
-      </div>
+  const accentColor = statusAccentColors[status];
 
-      <div
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        width: 320,
+        backgroundColor: '#141416', // Requested column background
+        borderRadius: '12px',
+        maxHeight: '100%',
+        flexShrink: 0,
+        border: '1px solid',
+        borderColor: isOver ? accentColor : 'rgba(255, 255, 255, 0.03)',
+        transition: 'all 0.2s ease'
+      }}
+    >
+      {/* Sticky Header */}
+      <Box sx={{ 
+        p: 2.5, 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        position: 'sticky',
+        top: 0,
+        backgroundColor: '#141416',
+        zIndex: 1,
+        borderRadius: '12px 12px 0 0',
+        borderBottom: '1px solid',
+        borderColor: 'rgba(255, 255, 255, 0.03)'
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: accentColor }} />
+          <Typography variant="body2" fontWeight={700} color="#FFFFFF" sx={{ letterSpacing: '0.02em', textTransform: 'uppercase', fontSize: '0.8rem' }}>
+            {title}
+          </Typography>
+        </Box>
+        <Box sx={{ 
+          px: 1, 
+          py: 0.25, 
+          borderRadius: '20px', 
+          backgroundColor: 'rgba(255, 255, 255, 0.05)', 
+          border: '1px solid', 
+          borderColor: 'rgba(255, 255, 255, 0.05)' 
+        }}>
+          <Typography variant="caption" fontWeight={700} color="text.disabled">
+            {tasks.length}
+          </Typography>
+        </Box>
+      </Box>
+
+      {/* Task List container */}
+      <Box
         ref={setNodeRef}
-        className={`flex-1 min-h-[400px] border-2 border-dashed rounded-lg p-2 space-y-3 transition-colors ${
-          isOver
-            ? 'border-blue-400 bg-blue-50'
-            : 'border-gray-300 bg-white'
-        } ${columnColors[status]}`}
+        sx={{
+          flex: 1,
+          overflowY: 'auto',
+          p: 2,
+          minHeight: 150,
+          backgroundColor: isOver ? 'rgba(255, 255, 255, 0.01)' : 'transparent',
+          transition: 'background-color 0.2s ease',
+          '&::-webkit-scrollbar': { width: '4px' },
+          '&::-webkit-scrollbar-thumb': { backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '4px' }
+        }}
       >
         <SortableContext items={tasks.map(task => task.id)} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
             <TaskCard key={task.id} task={task} />
           ))}
         </SortableContext>
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };

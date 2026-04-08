@@ -1,15 +1,12 @@
-import React from 'react';
 import { 
   TableRow, 
   TableCell, 
   Typography, 
   Box, 
   Avatar, 
-  Chip, 
-  Tooltip,
-  Skeleton
+  Skeleton,
+  Tooltip
 } from '@mui/material';
-import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
 import { TaskStatusSelect } from './TaskStatusSelect';
 import type { TaskStatus, TaskPriority, Task } from '../types/task';
 
@@ -66,32 +63,44 @@ export function TaskRow({
       tabIndex={0}
       sx={{ 
         cursor: 'pointer',
-        transition: 'all 0.2s ease',
-        backgroundColor: isSelected ? 'action.selected' : 'transparent',
-        '&:hover': { backgroundColor: 'action.hover' },
+        transition: 'background-color 0.1s ease',
+        backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
+        '&:hover': { 
+          backgroundColor: '#1F1F23' // Requested hover color
+        },
         '&:focusVisible': {
           outline: '2px solid',
           outlineColor: 'primary.main',
           outlineOffset: '-2px'
         },
-        '&:last-child td, &:last-child th': { border: 0 }
+        '& td, & th': { 
+          borderBottom: '1px solid', 
+          borderColor: 'rgba(255, 255, 255, 0.05)', // Minimal, subtle borders
+          py: 1.5,
+          px: 2
+        },
+        '&:last-child td, &:last-child th': { borderBottom: 0 }
       }}
     >
-      <TableCell component="th" scope="row" sx={{ borderColor: 'divider', maxWidth: 300 }}>
-        <Tooltip title={task.title} placement="top-start" arrow enterDelay={600}>
-          <Typography 
-            variant="body2" 
-            fontWeight={isSelected ? 700 : 600} 
-            color="text.primary"
-            sx={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
-          >
-            <Box component="span" sx={{ color: 'text.secondary', fontWeight: 500, mr: 1.5 }}>{task.id}</Box>
-            {task.title}
-          </Typography>
-        </Tooltip>
+      <TableCell component="th" scope="row" sx={{ maxWidth: { xs: 200, sm: 300, md: 400 } }}>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Tooltip title={task.title} placement="top-start" arrow enterDelay={700}>
+            <Typography 
+              variant="body2" 
+              fontWeight={600} 
+              color="text.primary"
+              sx={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+            >
+              <Box component="span" sx={{ color: 'text.disabled', fontWeight: 500, mr: 1.5, fontSize: '0.75rem' }}>
+                {task.id}
+              </Box>
+              {task.title}
+            </Typography>
+          </Tooltip>
+        </Box>
       </TableCell>
       
-      <TableCell sx={{ borderColor: 'divider' }}>
+      <TableCell>
         <Box onClick={(e) => e.stopPropagation()}>
           <TaskStatusSelect 
             value={task.status}
@@ -100,40 +109,47 @@ export function TaskRow({
         </Box>
       </TableCell>
       
-      <TableCell sx={{ borderColor: 'divider' }}>
-        <Tooltip title={`Assignee: ${task.assignedToUser ? `${task.assignedToUser.firstName} ${task.assignedToUser.lastName}` : 'Unassigned'}`} placement="top" arrow>
-          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
-            <Avatar 
-              src={undefined} // Since User type doesn't have avatar yet, we use initials or default
-              sx={{ width: 26, height: 26, border: '1px solid', borderColor: 'divider', fontSize: '0.7rem' }}
-            >
-              {task.assignedToUser?.firstName?.[0] || 'U'}
-            </Avatar>
-            <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', lg: 'block' } }}>
-              {task.assignedToUser?.firstName || 'Unassigned'}
-            </Typography>
-          </Box>
-        </Tooltip>
+      <TableCell>
+        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+          <Avatar 
+            sx={{ 
+              width: 24, 
+              height: 24, 
+              border: '1px solid', 
+              borderColor: 'rgba(255, 255, 255, 0.1)', 
+              fontSize: '0.65rem',
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              color: 'text.primary'
+            }}
+          >
+            {task.assignedToUser?.firstName?.[0] || 'U'}
+          </Avatar>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+            {task.assignedToUser?.firstName || 'Unassigned'}
+          </Typography>
+        </Box>
       </TableCell>
 
-      <TableCell sx={{ borderColor: 'divider' }}>
-        <Chip 
-          label={task.priority.charAt(0).toUpperCase() + task.priority.slice(1)} 
-          color={getPriorityColor(task.priority)}
-          size="small"
-          sx={{ height: 24, fontSize: '0.75rem', fontWeight: 600, borderRadius: '6px' }}
-        />
+      <TableCell>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ 
+            width: 6, 
+            height: 6, 
+            borderRadius: '50%', 
+            backgroundColor: getPriorityColor(task.priority) === 'error' ? '#EF4444' : (getPriorityColor(task.priority) === 'warning' ? '#F59E0B' : '#6B7280')
+          }} />
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem', textTransform: 'capitalize' }}>
+            {task.priority}
+          </Typography>
+        </Box>
       </TableCell>
 
-      <TableCell sx={{ borderColor: 'divider' }}>
-        <Tooltip title={`Due date: ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No date'}`} placement="top" arrow>
-          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
-            <CalendarTodayOutlinedIcon sx={{ fontSize: 14 }} />
-            <Typography variant="body2">
-              {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '-'}
-            </Typography>
-          </Box>
-        </Tooltip>
+      <TableCell>
+        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: 'text.disabled' }}>
+          <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+            {task.dueDate ? new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '-'}
+          </Typography>
+        </Box>
       </TableCell>
     </TableRow>
   );
