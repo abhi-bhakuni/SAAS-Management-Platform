@@ -20,7 +20,6 @@ import AddIcon from '@mui/icons-material/Add';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
 import { Sidebar } from '../components/Sidebar';
-import { MOCK_PROJECTS } from '../services/mockData';
 
 export function Projects() {
   const navigate = useNavigate();
@@ -32,16 +31,11 @@ export function Projects() {
 
   useEffect(() => {
     const fetchProjects = async () => {
-      if (user?.selectedOrgId) {
-        try {
-          const result = await projectsApi.getProjects(user.selectedOrgId);
-          setProjects(result.data || result);
-        } catch (error) {
-          console.error("Failed to fetch projects", error);
-        }
-      } else if (!user) {
-        // Guest mode: use mock data
-        setProjects(MOCK_PROJECTS);
+      try {
+        const result = await projectsApi.getProjects(user?.selectedOrgId);
+        setProjects(result.data || result);
+      } catch (error) {
+        console.error("Failed to fetch projects", error);
       }
       setIsLoading(false);
     };

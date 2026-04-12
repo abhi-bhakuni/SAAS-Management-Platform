@@ -14,6 +14,7 @@ import { HealthModule } from './modules/health/health.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { SandboxModule } from './modules/sandbox/sandbox.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { AppService } from './app.service';
     WebSocketModule,
     AnalyticsModule,
     HealthModule,
+    SandboxModule,
   ],
   controllers: [AppController],
   providers: [

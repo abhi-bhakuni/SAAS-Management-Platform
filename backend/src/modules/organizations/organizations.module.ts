@@ -10,6 +10,8 @@ import { Organization } from './entities/organization.entity';
 import { OrganizationInvite } from './entities/organization-invite.entity';
 import { User } from '../users/entities/user.entity';
 import { UserOrganizationMembership } from '../users/entities/user-organization-membership.entity';
+import { Project } from '../projects/entities/project.entity';
+import { Task } from '../projects/entities/task.entity';
 import { UsersModule } from '../users/users.module';
 import { EmailModule } from '../email/email.module';
 
@@ -20,6 +22,8 @@ import { EmailModule } from '../email/email.module';
       OrganizationInvite,
       User,
       UserOrganizationMembership,
+      Project,
+      Task,
     ]),
     forwardRef(() => UsersModule),
     EmailModule,

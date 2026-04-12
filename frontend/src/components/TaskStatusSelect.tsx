@@ -81,7 +81,7 @@ export function TaskStatusSelect({ value, onChange, isLoading = false }: TaskSta
     }
   };
 
-  const currentConfig = statusConfig[value];
+  const currentConfig = statusConfig[value] ?? statusConfig['todo'];
   const IconComponent = currentConfig.icon;
 
   return (

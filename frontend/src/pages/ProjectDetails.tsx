@@ -32,7 +32,6 @@ import type { UserOption } from '../components/AssigneeSelect';
 import { TaskStatusSelect } from '../components/TaskStatusSelect';
 import { TaskRow } from '../components/TaskRow';
 import { Sidebar } from '../components/Sidebar';
-import { MOCK_TASKS, MOCK_PROJECTS } from '../services/mockData';
 
 import type { Task, TaskStatus, TaskPriority } from '../types/task';
 import { KanbanBoard } from '../components/KanbanBoard';
@@ -71,31 +70,25 @@ export function ProjectDetails() {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (user?.selectedOrgId && projectId) {
-        try {
-          const [tasksData, usersData] = await Promise.all([
-            taskApi.getTasks(user.selectedOrgId, projectId),
-            taskApi.getAssignableUsers(user.selectedOrgId, projectId)
-          ]);
-          
-          setTasks((tasksData as any).data || tasksData);
-          
-          const mappedUsers = usersData.map((u: any) => ({
-            id: u.id,
-            firstName: u.firstName,
-            lastName: u.lastName,
-            name: `${u.firstName} ${u.lastName}`,
-            email: u.email,
-            avatar: ''
-          }));
-          setAssignableUsers([{ id: 'unassigned', name: 'Unassigned', avatar: '' }, ...mappedUsers]);
-        } catch (error) {
-          console.error("Failed to fetch project details", error);
-        }
-      } else if (!user) {
-        // Guest mode: use mock tasks
-        setTasks(MOCK_TASKS);
-        setAssignableUsers([{ id: 'unassigned', name: 'Unassigned', avatar: '' }]);
+      try {
+        const [tasksData, usersData] = await Promise.all([
+          taskApi.getTasks(user?.selectedOrgId, projectId),
+          taskApi.getAssignableUsers(user?.selectedOrgId || 'guest', projectId || 'sandbox')
+        ]);
+        
+        setTasks((tasksData as any).data || tasksData);
+        
+        const mappedUsers = Array.isArray(usersData) ? usersData.map((u: any) => ({
+          id: u.id,
+          firstName: u.firstName || u.name?.split(' ')[0],
+          lastName: u.lastName || u.name?.split(' ')[1] || '',
+          name: u.name || `${u.firstName} ${u.lastName}`,
+          email: u.email || '',
+          avatar: u.avatar || ''
+        })) : [];
+        setAssignableUsers([{ id: 'unassigned', name: 'Unassigned', avatar: '' }, ...mappedUsers]);
+      } catch (error) {
+        console.error("Failed to fetch project details", error);
       }
       setIsLoading(false);
     };
@@ -168,7 +161,7 @@ export function ProjectDetails() {
   return (
     <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden', backgroundColor: 'background.default' }}>
       <Sidebar />
-      <Box sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
       
       {/* Top Header Section */}
@@ -186,9 +179,7 @@ export function ProjectDetails() {
             </Typography>
             <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.2)' }}>/</Typography>
             <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 600 }}>
-              {projectId?.startsWith('mock-') 
-                ? (MOCK_PROJECTS.find((p: any) => p.id === projectId)?.name || 'Project') 
-                : 'Project Details'}
+              Project Details
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
@@ -307,14 +298,10 @@ export function ProjectDetails() {
             {/* Project Title and Description */}
             <Box sx={{ mb: 5 }}>
               <Typography variant="h4" fontWeight="800" sx={{ letterSpacing: '-0.02em', mb: 1 }}>
-                {projectId?.startsWith('mock-') 
-                  ? (MOCK_PROJECTS.find((p: any) => p.id === projectId)?.name || 'Project Overview') 
-                  : 'Project Workspace'}
+                Project Workspace
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 700, lineHeight: 1.6 }}>
-                {projectId?.startsWith('mock-') 
-                  ? (MOCK_PROJECTS.find((p: any) => p.id === projectId)?.description || 'Collaborate with your team to deliver high-impact results through this dedicated workspace.') 
-                  : 'Collaborate with your team to deliver high-impact results through this dedicated workspace.'}
+                Collaborate with your team to deliver high-impact results through this dedicated workspace.
               </Typography>
             </Box>
 

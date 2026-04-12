@@ -57,6 +57,24 @@ export class OrganizationsController {
   }
 
   /**
+   * GET /organizations/:orgId/dashboard-stats - Get dashboard statistics with trend calculations
+   */
+  @UseGuards(OrgMembershipGuard)
+  @Get(':orgId/dashboard-stats')
+  async getDashboardStats(
+    @Param('orgId') orgId: string,
+    @CurrentUser() user: any,
+  ): Promise<any> {
+    // Validate workspace context
+    if (orgId !== user.selectedOrgId && user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException(
+        'Workspace mismatch: cannot access a different organization',
+      );
+    }
+    return this.organizationsService.getDashboardStats(orgId);
+  }
+
+  /**
    * POST /organizations - Create new organization (admin only)
    */
   @Roles(UserRole.ADMIN)

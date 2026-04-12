@@ -10,6 +10,9 @@ const api = axios.create({
   },
 });
 
+// Helper to determine if we are in sandbox mode
+const isSandboxMode = () => !localStorage.getItem('authToken');
+
 // Request interceptor to attach token dynamically
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('authToken');
@@ -28,8 +31,6 @@ api.interceptors.response.use(
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
       
-      // Only redirect if the user was previously logged in (session expired)
-      // or if they are on a strictly protected route (which we are relaxing now)
       if (hadToken && window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
@@ -48,28 +49,50 @@ export const authApi = {
     return response.data;
   },
   getCurrentUser: async () => {
+    if (isSandboxMode()) return { id: 'guest', name: 'Guest User', role: 'GUEST' };
     const response = await api.get('/auth/me');
     return response.data;
   }
 };
 
+export const dashboardApi = {
+  getStats: async (orgId?: string) => {
+    if (isSandboxMode()) {
+      const response = await api.get('/sandbox/dashboard');
+      return response.data;
+    }
+    const response = await api.get(`/organizations/${orgId}/dashboard-stats`);
+    return response.data;
+  }
+};
+
 export const projectsApi = {
-  getProjects: async (orgId: string) => {
+  getProjects: async (orgId?: string) => {
+    if (isSandboxMode()) {
+      const response = await api.get('/sandbox/projects');
+      return response.data;
+    }
     const response = await api.get(`/organizations/${orgId}/projects`);
     return response.data;
   },
   createProject: async (orgId: string, data: any) => {
+    if (isSandboxMode()) throw new Error('Cannot create projects in Sandbox mode.');
     const response = await api.post(`/organizations/${orgId}/projects`, data);
     return response.data;
   }
 };
 
 export const taskApi = {
-  getTasks: async (orgId: string, projectId: string): Promise<Task[]> => {
+  getTasks: async (orgId?: string, projectId?: string): Promise<Task[]> => {
+    if (isSandboxMode()) {
+      const response = await api.get('/sandbox/tasks');
+      return response.data;
+    }
     const response = await api.get(`/organizations/${orgId}/projects/${projectId}/tasks`);
     return response.data;
   },
   updateTaskStatus: async (orgId: string, projectId: string, taskId: string, status: string): Promise<Task> => {
+    if (isSandboxMode()) throw new Error('Modifications restricted in Sandbox.');
     const response = await api.patch(
       `/organizations/${orgId}/projects/${projectId}/tasks/${taskId}/status`,
       { status }
@@ -77,6 +100,7 @@ export const taskApi = {
     return response.data;
   },
   createTask: async (orgId: string, projectId: string, taskData: CreateTaskDto): Promise<Task> => {
+    if (isSandboxMode()) throw new Error('Modifications restricted in Sandbox.');
     const response = await api.post(
       `/organizations/${orgId}/projects/${projectId}/tasks`,
       taskData
@@ -84,6 +108,7 @@ export const taskApi = {
     return response.data;
   },
   updateTask: async (orgId: string, projectId: string, taskId: string, taskData: UpdateTaskDto): Promise<Task> => {
+    if (isSandboxMode()) throw new Error('Modifications restricted in Sandbox.');
     const response = await api.put(
       `/organizations/${orgId}/projects/${projectId}/tasks/${taskId}`,
       taskData
@@ -91,12 +116,25 @@ export const taskApi = {
     return response.data;
   },
   deleteTask: async (orgId: string, projectId: string, taskId: string): Promise<void> => {
+    if (isSandboxMode()) throw new Error('Modifications restricted in Sandbox.');
     await api.delete(`/organizations/${orgId}/projects/${projectId}/tasks/${taskId}`);
   },
   getAssignableUsers: async (orgId: string, projectId: string): Promise<any[]> => {
+    if (isSandboxMode()) return [{ id: 'u1', name: 'Abhishek B.' }, { id: 'u2', name: 'Sarah M.' }];
     const response = await api.get(`/organizations/${orgId}/projects/${projectId}/tasks/assignable-users`);
     return response.data;
   },
+};
+
+export const activityApi = {
+  getActivity: async (orgId?: string, projectId?: string) => {
+    if (isSandboxMode()) {
+      const response = await api.get('/sandbox/activity');
+      return response.data;
+    }
+    const response = await api.get(`/organizations/${orgId}/activity`);
+    return response.data;
+  }
 };
 
 export default api;

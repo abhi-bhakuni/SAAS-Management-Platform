@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -12,10 +12,11 @@ import {
   IconButton,
   Select,
   MenuItem,
-  FormControl
+  FormControl,
+  CircularProgress
 } from '@mui/material';
 import { Sidebar } from '../components/Sidebar';
-import { MOCK_TASKS, MOCK_PROJECTS } from '../services/mockData';
+import { taskApi, projectsApi } from '../services/api';
 import { TaskStatusSelect } from '../components/TaskStatusSelect';
 import type { TaskStatus } from '../types/task';
 import FilterListIcon from '@mui/icons-material/FilterList';
@@ -25,33 +26,56 @@ import { useNavigate } from 'react-router-dom';
 
 export function GlobalTasks() {
   const navigate = useNavigate();
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [projectFilter, setProjectFilter] = useState<string>('all');
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [tasksRes, projectsRes] = await Promise.all([
+          taskApi.getTasks(),
+          projectsApi.getProjects()
+        ]);
+        setTasks(tasksRes);
+        setProjects(Array.isArray(projectsRes) ? projectsRes : (projectsRes.data || []));
+      } catch (error) {
+        console.error('Failed to fetch tasks or projects:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   // Enrich tasks with project names
   const enrichedTasks = useMemo(() => {
-    return MOCK_TASKS.map(task => {
-      const project = MOCK_PROJECTS.find(p => p.id === task.projectId);
+    return tasks.map(task => {
+      const project = projects.find(p => p.id === task.projectId);
       return {
         ...task,
-        projectName: project ? project.name.replace('[Demo] ', '') : 'Unknown Project'
+        projectName: project ? project.title || project.name : 'Sandbox Project'
       };
     });
-  }, []);
+  }, [tasks, projects]);
 
   // Filter logic
   const filteredTasks = useMemo(() => {
     return enrichedTasks.filter(task => {
       const matchStatus = statusFilter === 'all' || task.status === statusFilter;
       const matchProject = projectFilter === 'all' || task.projectId === projectFilter;
-      const matchAssignee = assigneeFilter === 'all' || task.assignedToUser?.firstName === assigneeFilter;
+      const matchAssignee = assigneeFilter === 'all' || 
+                           task.assignedToUser?.firstName === assigneeFilter || 
+                           task.assignee === assigneeFilter;
       return matchStatus && matchProject && matchAssignee;
     });
   }, [enrichedTasks, statusFilter, projectFilter, assigneeFilter]);
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh', backgroundColor: 'background.default' }}>
+    <Box sx={{ display: 'flex', height: '100vh', backgroundColor: '#0F0F11' }}>
       <Sidebar />
       <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         
@@ -77,16 +101,11 @@ export function GlobalTasks() {
                 value={projectFilter}
                 onChange={(e) => setProjectFilter(e.target.value)}
                 displayEmpty
-                sx={{ 
-                  borderRadius: '8px', 
-                  fontSize: '0.85rem', 
-                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.1)' }
-                }}
+                sx={filterStyle}
               >
                 <MenuItem value="all">All Projects</MenuItem>
-                {MOCK_PROJECTS.map(p => (
-                  <MenuItem key={p.id} value={p.id}>{p.name.replace('[Demo] ', '')}</MenuItem>
+                {projects.map(p => (
+                  <MenuItem key={p.id} value={p.id}>{p.title || p.name}</MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -95,18 +114,13 @@ export function GlobalTasks() {
               <Select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                sx={{ 
-                  borderRadius: '8px', 
-                  fontSize: '0.85rem', 
-                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.1)' }
-                }}
+                sx={filterStyle}
               >
                 <MenuItem value="all">All Statuses</MenuItem>
-                <MenuItem value="todo">Todo</MenuItem>
-                <MenuItem value="in_progress">In Progress</MenuItem>
-                <MenuItem value="review">Review</MenuItem>
-                <MenuItem value="done">Done</MenuItem>
+                <MenuItem value="Todo">Todo</MenuItem>
+                <MenuItem value="In Progress">In Progress</MenuItem>
+                <MenuItem value="Review">Review</MenuItem>
+                <MenuItem value="Done">Done</MenuItem>
               </Select>
             </FormControl>
 
@@ -114,16 +128,12 @@ export function GlobalTasks() {
               <Select
                 value={assigneeFilter}
                 onChange={(e) => setAssigneeFilter(e.target.value)}
-                sx={{ 
-                  borderRadius: '8px', 
-                  fontSize: '0.85rem', 
-                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.1)' }
-                }}
+                sx={filterStyle}
               >
                 <MenuItem value="all">Every Assignee</MenuItem>
-                <MenuItem value="Demo">Demo User</MenuItem>
-                <MenuItem value="Guest">Guest Viewer</MenuItem>
+                <MenuItem value="Abhishek B.">Abhishek B.</MenuItem>
+                <MenuItem value="Sarah M.">Sarah M.</MenuItem>
+                <MenuItem value="David C.">David C.</MenuItem>
               </Select>
             </FormControl>
 
@@ -155,7 +165,14 @@ export function GlobalTasks() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredTasks.length === 0 ? (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} sx={{ py: 10, textAlign: 'center', borderBottom: 0 }}>
+                      <CircularProgress size={24} sx={{ color: 'text.disabled', mb: 2 }} />
+                      <Typography color="text.secondary">Loading your workspace...</Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredTasks.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} sx={{ py: 10, textAlign: 'center', borderBottom: 0 }}>
                       <ReceiptLongOutlinedIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 2 }} />
@@ -167,7 +184,7 @@ export function GlobalTasks() {
                     <TableRow 
                       key={task.id} 
                       hover
-                      onClick={() => navigate(`/projects/${task.projectId}`)}
+                      onClick={() => navigate(`/projects/${task.id}`)}
                       sx={{ 
                         cursor: 'pointer',
                         '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.02) !important' }
@@ -196,8 +213,8 @@ export function GlobalTasks() {
                       <TableCell sx={cellStyle}>
                         <Box onClick={(e) => e.stopPropagation()}>
                           <TaskStatusSelect 
-                            value={task.status as TaskStatus}
-                            onChange={() => {}} // Simulation mode
+                            value={(task.status || 'Todo') as TaskStatus}
+                            onChange={() => {}} // Read-only for Global View currently
                           />
                         </Box>
                       </TableCell>
@@ -205,10 +222,10 @@ export function GlobalTasks() {
                       <TableCell sx={cellStyle}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <Avatar sx={{ width: 24, height: 24, fontSize: '0.7rem', fontWeight: 700, backgroundColor: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                            {task.assignedToUser?.firstName?.[0] || 'U'}
+                            {task.assignee?.[0] || task.assignedToUser?.firstName?.[0] || 'U'}
                           </Avatar>
                           <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
-                            {task.assignedToUser?.firstName || 'Unassigned'}
+                            {task.assignee || task.assignedToUser?.firstName || 'Unassigned'}
                           </Typography>
                         </Box>
                       </TableCell>
@@ -229,6 +246,13 @@ export function GlobalTasks() {
     </Box>
   );
 }
+
+const filterStyle = { 
+  borderRadius: '8px', 
+  fontSize: '0.85rem', 
+  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 0.1)' }
+};
 
 const headerCellStyle = {
   fontWeight: 700, 

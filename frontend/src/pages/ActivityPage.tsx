@@ -32,89 +32,11 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 
-// Extended Mock Data for Advanced Feed
-const ENRICHED_ACTIVITY = [
-  {
-    id: 1,
-    type: 'task_created',
-    user: 'Abhishek Bhakuni',
-    userId: 'u1',
-    avatar: 'https://i.pravatar.cc/150?u=abhishek',
-    description: 'created task',
-    targetName: 'Design System Documentation',
-    targetId: 'MOCK-101',
-    project: 'Website Redesign',
-    projectId: 'mock-proj-1',
-    timestamp: new Date(Date.now() - 1000 * 60 * 5), // 5 mins ago
-    color: '#3B82F6',
-    detail: 'New task created to standardize the workspace across all components.'
-  },
-  {
-    id: 2,
-    type: 'task_moved',
-    user: 'Sarah Miller',
-    userId: 'u2',
-    avatar: 'https://i.pravatar.cc/150?u=sarah',
-    description: 'moved task',
-    targetName: 'Auth Flow Implementation',
-    targetId: 'MOCK-102',
-    fromStatus: 'Todo',
-    toStatus: 'Review',
-    project: 'Mobile App',
-    projectId: 'mock-proj-2',
-    timestamp: new Date(Date.now() - 1000 * 60 * 15), // 15 mins ago
-    color: '#A855F7',
-    detail: 'Task transitioned from backlog to stakeholder review phase.'
-  },
-  {
-    id: 3,
-    type: 'task_assigned',
-    user: 'David Chen',
-    userId: 'u3',
-    avatar: 'https://i.pravatar.cc/150?u=david',
-    description: 'assigned task',
-    targetName: 'Database Optimization',
-    targetId: 'MOCK-103',
-    assigneeName: 'John Doe',
-    project: 'Backend API',
-    projectId: 'mock-proj-3',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-    color: '#F59E0B',
-    detail: 'Assignment transferred to specialized backend engineer.'
-  },
-  {
-    id: 4,
-    type: 'task_status_changed',
-    user: 'Abhishek Bhakuni',
-    userId: 'u1',
-    avatar: 'https://i.pravatar.cc/150?u=abhishek',
-    description: 'completed task',
-    targetName: 'Hero Section Design',
-    targetId: 'MOCK-104',
-    project: 'Website Redesign',
-    projectId: 'mock-proj-1',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 25), // Yesterday
-    color: '#10B981',
-    detail: 'Final approval received for hero section assets.'
-  },
-  {
-    id: 5,
-    type: 'task_deleted',
-    user: 'Sarah Miller',
-    userId: 'u2',
-    avatar: 'https://i.pravatar.cc/150?u=sarah',
-    description: 'deleted task',
-    targetName: 'Old UI cleanup',
-    project: 'Mobile App',
-    projectId: 'mock-proj-2',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48), // 2 days ago
-    color: '#EF4444',
-    detail: 'Redundant task removed to clean up project backlog.'
-  }
-];
+import { activityApi } from '../services/api';
 
 export function ActivityPage() {
   const navigate = useNavigate();
+  const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [typeFilter, setTypeFilter] = useState('all');
@@ -123,7 +45,22 @@ export function ActivityPage() {
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
 
   useEffect(() => {
-    setTimeout(() => setLoading(false), 800);
+    const fetchActivities = async () => {
+      try {
+        const data = await activityApi.getActivity();
+        // Convert ISO strings back to Date objects if needed
+        const processed = data.map((a: any) => ({
+          ...a,
+          timestamp: new Date(a.timestamp)
+        }));
+        setActivities(processed);
+      } catch (error) {
+        console.error('Failed to fetch activity logs:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchActivities();
   }, []);
 
   const handleScroll = (e: any) => {
@@ -131,7 +68,7 @@ export function ActivityPage() {
   };
 
   const filteredActivities = useMemo(() => {
-    return ENRICHED_ACTIVITY.filter(item => {
+    return activities.filter(item => {
       const matchType = typeFilter === 'all' || item.type.includes(typeFilter);
       const matchProject = projectFilter === 'all' || item.projectId === projectFilter;
       const matchSearch = item.targetName.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -139,10 +76,10 @@ export function ActivityPage() {
                           item.user.toLowerCase().includes(searchQuery.toLowerCase());
       return matchType && matchProject && matchSearch;
     });
-  }, [typeFilter, projectFilter, searchQuery]);
+  }, [activities, typeFilter, projectFilter, searchQuery]);
 
   const groupedActivities = useMemo(() => {
-    const groups: { [key: string]: typeof ENRICHED_ACTIVITY } = {
+    const groups: { [key: string]: any[] } = {
       'Today': [],
       'Yesterday': [],
       'Earlier': []
