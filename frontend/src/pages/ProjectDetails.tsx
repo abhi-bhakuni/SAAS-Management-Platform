@@ -156,7 +156,40 @@ export function ProjectDetails() {
     // TODO: Persistence for order if needed
   };
 
+  const handleUpdateTask = async () => {
+    if (!user?.selectedOrgId || !projectId || !selectedTask) return;
+    try {
+      const updatedTask = await taskApi.updateTask(
+        user.selectedOrgId, 
+        projectId, 
+        selectedTask.id, 
+        {
+          title: selectedTask.title,
+          description: selectedTask.description,
+          priority: selectedTask.priority,
+          dueDate: selectedTask.dueDate,
+          // Assignee bindings can be injected here similarly when completely mapped in AssigneeSelect
+        }
+      );
+      setTasks(tasks.map(t => t.id === selectedTask.id ? updatedTask : t));
+      setIsDrawerOpen(false);
+    } catch (error) {
+      console.error("Failed to update task", error);
+    }
+  };
 
+  const handleDeleteTask = async () => {
+    if (!user?.selectedOrgId || !projectId || !selectedTask) return;
+    if (!window.confirm("Are you sure you want to delete this task?")) return;
+    try {
+      await taskApi.deleteTask(user.selectedOrgId, projectId, selectedTask.id);
+      setTasks(tasks.filter(t => t.id !== selectedTask.id));
+      setIsDrawerOpen(false);
+      setSelectedTask(null);
+    } catch (error) {
+      console.error("Failed to delete task", error);
+    }
+  };
 
   return (
     <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden', backgroundColor: 'background.default' }}>
@@ -404,11 +437,16 @@ export function ProjectDetails() {
           
           <Box sx={{ p: 4, overflowY: 'auto', flexGrow: 1 }}>
             {/* Title - Edit Mode */}
-            <Typography variant="h5" fontWeight="800" color="text.primary" mb={4} sx={{ letterSpacing: '-0.01em' }}>
-              {selectedTask?.title}
-            </Typography>
-
-            <Box sx={{ 
+            <TextField
+              variant="standard"
+              value={selectedTask?.title || ''}
+              onChange={(e) => setSelectedTask(selectedTask ? { ...selectedTask, title: e.target.value } : null)}
+              InputProps={{
+                disableUnderline: true,
+                sx: { fontSize: '1.5rem', fontWeight: 800, color: 'text.primary', letterSpacing: '-0.01em', mb: 4 }
+              }}
+              fullWidth
+            />            <Box sx={{ 
               display: 'flex', 
               flexDirection: 'column', 
               gap: 3.5,
@@ -433,8 +471,8 @@ export function ProjectDetails() {
                 {selectedTask && (
                   <AssigneeSelect 
                     value={{
-                      id: selectedTask.assignedToUserId || 'unassigned',
-                      name: selectedTask.assignedToUser ? `${selectedTask.assignedToUser.firstName} ${selectedTask.assignedToUser.lastName}` : 'Unassigned',
+                      id: selectedTask.id || 'unassigned',
+                      name: selectedTask.assignee || 'Unassigned',
                       avatar: ''
                     }}
                     options={assignableUsers}
@@ -450,7 +488,8 @@ export function ProjectDetails() {
                 {selectedTask && (
                   <FormControl size="small" sx={{ width: 120 }}>
                     <Select
-                      value={selectedTask.priority}
+                      value={selectedTask.priority.toLowerCase()}
+                      onChange={(e) => setSelectedTask({ ...selectedTask, priority: e.target.value as TaskPriority })}
                       sx={{ 
                         borderRadius: '6px', 
                         fontSize: '0.8rem', 
@@ -484,6 +523,7 @@ export function ProjectDetails() {
                     } 
                   }}
                   value={selectedTask?.dueDate ? new Date(selectedTask.dueDate).toISOString().split('T')[0] : ''}
+                  onChange={(e) => setSelectedTask(selectedTask ? { ...selectedTask, dueDate: e.target.value } : null)}
                 />
               </Box>
             </Box>
@@ -497,7 +537,8 @@ export function ProjectDetails() {
               rows={6}
               variant="outlined"
               placeholder="Add details about this task..."
-              defaultValue={selectedTask?.description}
+              value={selectedTask?.description || ''}
+              onChange={(e) => setSelectedTask(selectedTask ? { ...selectedTask, description: e.target.value } : null)}
               sx={{ 
                 '& .MuiOutlinedInput-root': { 
                   borderRadius: '10px', 
@@ -513,16 +554,18 @@ export function ProjectDetails() {
           </Box>
           
           {/* Action Footer */}
-          <Box sx={{ 
-            p: 3, 
-            borderTop: '1px solid rgba(255, 255, 255, 0.05)', 
-            display: 'flex', 
-            justifyContent: 'flex-end',
-            gap: 2
-          }}>
-            <Button size="small" sx={{ textTransform: 'none', color: 'text.disabled' }}>Delete Task</Button>
-            <Button size="small" variant="contained" disableElevation sx={{ borderRadius: '6px', textTransform: 'none', px: 3, backgroundColor: '#FFFFFF', color: '#000000', fontWeight: 700 }}>Save Changes</Button>
-          </Box>
+          {user && (
+            <Box sx={{ 
+              p: 3, 
+              borderTop: '1px solid rgba(255, 255, 255, 0.05)', 
+              display: 'flex', 
+              justifyContent: 'flex-end',
+              gap: 2
+            }}>
+              <Button onClick={handleDeleteTask} size="small" sx={{ textTransform: 'none', color: 'text.disabled', '&:hover': { color: 'error.main' } }}>Delete Task</Button>
+              <Button onClick={handleUpdateTask} size="small" variant="contained" disableElevation sx={{ borderRadius: '6px', textTransform: 'none', px: 3, backgroundColor: '#FFFFFF', color: '#000000', fontWeight: 700 }}>Save Changes</Button>
+            </Box>
+          )}
         </Drawer>
 
       {/* Add Task Modal */}

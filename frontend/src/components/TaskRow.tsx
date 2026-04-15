@@ -103,7 +103,7 @@ export function TaskRow({
       <TableCell>
         <Box onClick={(e) => e.stopPropagation()}>
           <TaskStatusSelect 
-            value={task.status}
+            value={task.status.toLowerCase() as TaskStatus}
             onChange={(s) => onStatusChange?.(s)}
           />
         </Box>
@@ -122,10 +122,10 @@ export function TaskRow({
               color: 'text.primary'
             }}
           >
-            {task.assignedToUser?.firstName?.[0] || 'U'}
+            {task.assignee?.[0] || 'U'}
           </Avatar>
           <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
-            {task.assignedToUser?.firstName || 'Unassigned'}
+            {task.assignee || 'Unassigned'}
           </Typography>
         </Box>
       </TableCell>

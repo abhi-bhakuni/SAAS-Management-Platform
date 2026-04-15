@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Project } from '../entities/project.entity';
+import { Task } from '../entities/task.entity';
 import { CreateProjectDto, UpdateProjectDto } from '../dtos';
 
 @Injectable()
@@ -13,6 +14,8 @@ export class ProjectsService {
   constructor(
     @InjectRepository(Project)
     private readonly projectRepository: Repository<Project>,
+    @InjectRepository(Task)
+    private readonly taskRepository: Repository<Task>,
   ) {}
 
   /**
@@ -27,8 +30,25 @@ export class ProjectsService {
       take: limit,
     });
 
+    let data: ReturnType<typeof this.toResponse>[] = [];
+    if (projects.length > 0) {
+      const projectIds = projects.map(p => p.id);
+      
+      const taskCounts = await this.taskRepository
+        .createQueryBuilder('task')
+        .select('task.projectId', 'projectId')
+        .addSelect('COUNT(task.id)', 'count')
+        .where('task.projectId IN (:...projectIds)', { projectIds })
+        .groupBy('task.projectId')
+        .getRawMany();
+
+      const countMap = new Map(taskCounts.map(tc => [tc.projectId, parseInt(tc.count, 10)]));
+      
+      data = projects.map(p => this.toResponse(p, countMap.get(p.id) || 0));
+    }
+
     return {
-      data: projects.map((p) => this.toResponse(p)),
+      data,
       total,
       page,
       limit,
@@ -51,7 +71,8 @@ export class ProjectsService {
       );
     }
 
-    return this.toResponse(project);
+    const membersCount = await this.taskRepository.count({ where: { projectId: project.id } });
+    return this.toResponse(project, membersCount);
   }
 
   /**
@@ -71,7 +92,7 @@ export class ProjectsService {
     const saved = await this.projectRepository.save(project);
 
     // Re-fetch with relations so the response is complete
-    return this.findOne(organizationId, saved.id);
+    return await this.findOne(organizationId, saved.id);
   }
 
   /**
@@ -95,7 +116,7 @@ export class ProjectsService {
     Object.assign(project, dto);
     await this.projectRepository.save(project);
 
-    return this.findOne(organizationId, projectId);
+    return await this.findOne(organizationId, projectId);
   }
 
   /**
@@ -118,7 +139,7 @@ export class ProjectsService {
 
   // ─── Private helpers ────────────────────────────────────────────────────────
 
-  private toResponse(project: Project) {
+  private toResponse(project: Project, membersCount: number) {
     return {
       id: project.id,
       organizationId: project.organizationId,
@@ -129,6 +150,7 @@ export class ProjectsService {
       settings: project.settings ?? null,
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
+      members: membersCount,
       createdBy: project.createdBy
         ? {
             id: project.createdBy.id,

@@ -15,6 +15,7 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  Skeleton,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
@@ -126,8 +127,12 @@ export function Projects() {
             </Box>
             
             {isLoading ? (
-              <Box sx={{ textAlign: 'center', py: 12 }}>
-                 <Typography color="text.secondary" variant="body2">Loading projects...</Typography>
+              <Box sx={{ 
+                display: 'grid', 
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, 
+                gap: 3 
+              }}>
+                <Skeleton variant="rounded" height={220} sx={{ borderRadius: '16px', bgcolor: 'rgba(255, 255, 255, 0.05)' }} />
               </Box>
             ) : projects.length === 0 ? (
               <Box sx={{ 

@@ -205,7 +205,7 @@ export function GlobalTasks() {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <LayersOutlinedIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
                           <Typography variant="body2" color="text.secondary" fontWeight="600" sx={{ fontSize: '0.8rem' }}>
-                            {task.projectName}
+                            {task.name}
                           </Typography>
                         </Box>
                       </TableCell>

@@ -32,26 +32,26 @@ export class SandboxService {
     return [
       {
         id: 'mock-proj-1',
-        title: 'Website Redesign',
+        name: 'Website Redesign',
         description: 'Modernizing the landing page with better conversion metrics.',
         members: 3,
-        updatedAt: '2h ago',
+        updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
         status: 'Active',
       },
       {
         id: 'mock-proj-2',
-        title: 'Mobile App',
+        name: 'Mobile App',
         description: 'Building the iOS/Android client for user core functions.',
         members: 5,
-        updatedAt: '5h ago',
+        updatedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
         status: 'In Progress',
       },
       {
         id: 'mock-proj-3',
-        title: 'Backend API',
+        name: 'Backend API',
         description: 'Scaling the core microservices for high availability.',
         members: 2,
-        updatedAt: '1d ago',
+        updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
         status: 'Planning',
       }
     ];
@@ -63,7 +63,7 @@ export class SandboxService {
         id: 'MOCK-101',
         title: 'Design System Documentation',
         project: 'Website Redesign',
-        status: 'Done',
+        status: 'done',
         assignee: 'Abhishek B.',
         dueDate: '2026-05-10',
         priority: 'High'
@@ -72,7 +72,7 @@ export class SandboxService {
         id: 'MOCK-102',
         title: 'Auth Flow Implementation',
         project: 'Mobile App',
-        status: 'Review',
+        status: 'in_review',
         assignee: 'Sarah M.',
         dueDate: '2026-05-12',
         priority: 'Critical'
@@ -81,7 +81,7 @@ export class SandboxService {
         id: 'MOCK-103',
         title: 'Database Optimization',
         project: 'Backend API',
-        status: 'In Progress',
+        status: 'in_progress',
         assignee: 'David C.',
         dueDate: '2026-05-15',
         priority: 'Medium'

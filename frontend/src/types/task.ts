@@ -24,6 +24,9 @@ export interface Task {
   metadata?: Record<string, any>;
   createdAt: string;
   updatedAt: string;
+  assignee?: string;
+  project?: string;
+  projectName?: string;
 }
 
 export interface CreateTaskDto {
