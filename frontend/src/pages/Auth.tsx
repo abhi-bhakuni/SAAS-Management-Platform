@@ -28,7 +28,8 @@ export function Auth() {
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [error, setError] = useState('');
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -40,7 +41,7 @@ export function Auth() {
       if (isLogin) {
         await login({ email, password });
       } else {
-        await register({ email, password, firstName: name || 'User' });
+        await register({ email, password, firstName: firstName || 'User', lastName: lastName || undefined });
       }
       navigate('/');
     } catch (err: any) {
@@ -307,18 +308,33 @@ export function Auth() {
             {/* Fields */}
             <Box component="form" onSubmit={handleAuth}>
               {!isLogin && (
-                <Box mb={2.5}>
-                  <Typography variant="caption" fontWeight="600" color="#71717A" sx={{ display: 'block', mb: 0.75, letterSpacing: '0.03em' }}>
-                    FULL NAME
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    placeholder="Jane Smith"
-                    size="small"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    sx={fieldSx}
-                  />
+                <Box sx={{ display: 'flex', gap: 2, mb: 2.5 }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="caption" fontWeight="600" color="#71717A" sx={{ display: 'block', mb: 0.75, letterSpacing: '0.03em' }}>
+                      FIRST NAME
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      placeholder="Jane"
+                      size="small"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      sx={fieldSx}
+                    />
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="caption" fontWeight="600" color="#71717A" sx={{ display: 'block', mb: 0.75, letterSpacing: '0.03em' }}>
+                      LAST NAME <Typography component="span" sx={{ fontSize: '0.65rem', opacity: 0.6 }}>(OPTIONAL)</Typography>
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      placeholder="Smith"
+                      size="small"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      sx={fieldSx}
+                    />
+                  </Box>
                 </Box>
               )}
 

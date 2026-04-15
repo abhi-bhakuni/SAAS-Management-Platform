@@ -2,6 +2,14 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { authApi } from '../services/api';
 
+const hashPassword = async (password: string) => {
+  if (!password) return password;
+  const msgBuffer = new TextEncoder().encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
 interface User {
   id: string;
   email: string;
@@ -44,7 +52,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   const login = async (credentials: any) => {
-    const data = await authApi.login(credentials);
+    const secureCredentials = { 
+      ...credentials, 
+      password: await hashPassword(credentials.password) 
+    };
+    const data = await authApi.login(secureCredentials);
     const { accessToken, user: userData } = data;
     
     localStorage.setItem('authToken', accessToken);
@@ -54,7 +66,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (signUpData: any) => {
-    const data = await authApi.register(signUpData);
+    const secureData = { 
+      ...signUpData, 
+      password: await hashPassword(signUpData.password) 
+    };
+    const data = await authApi.register(secureData);
     const { accessToken, user: userData } = data;
     
     localStorage.setItem('authToken', accessToken);
