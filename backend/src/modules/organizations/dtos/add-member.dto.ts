@@ -1,7 +1,11 @@
 import { IsUUID, IsEnum } from 'class-validator';
 import { OrganizationRole } from '../../users/entities/user-organization-membership.entity';
+import { Transform } from 'class-transformer';
 
 export class AddMemberDto {
+  @Transform(({ value }) => {
+    return typeof value === 'string' ? `user_${value.replace(/-/g, '')}` : `user_${value}`;
+  })
   @IsUUID()
   userId: string;
 

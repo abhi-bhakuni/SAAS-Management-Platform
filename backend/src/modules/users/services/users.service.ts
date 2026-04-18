@@ -14,12 +14,15 @@ import {
   LoginDto,
   ChangePasswordDto,
 } from '../dtos';
+import { UserOrganizationMembership } from '../entities/user-organization-membership.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(UserOrganizationMembership)
+    private readonly membershipRepository: Repository<UserOrganizationMembership>,
   ) {}
 
   async findAll(page = 1, limit = 10) {

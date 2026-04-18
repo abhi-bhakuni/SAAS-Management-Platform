@@ -1,5 +1,6 @@
 import { IsEmail, IsString, MinLength, IsEnum, IsOptional, IsUUID } from 'class-validator';
 import { UserRole, OrganizationRole } from '../../../common/enums';
+import { Transform } from 'class-transformer';
 
 /**
  * Login DTO for POST /auth/login
@@ -18,10 +19,10 @@ export class LoginDto {
  */
 export class SignupDto {
   @IsEmail()
-  email: string;
+  email!: string;
 
   @IsString()
-  firstName: string;
+  firstName!: string;
 
   @IsString()
   @IsOptional()
@@ -29,17 +30,20 @@ export class SignupDto {
 
   @IsString()
   @MinLength(6)
-  password: string;
+  password!: string;
 
   @IsEnum(UserRole)
   @IsOptional()
-  role?: UserRole = UserRole.MEMBER;
+  role?: UserRole = UserRole.ADMIN;
 }
 
 /**
  * Switch workspace DTO for POST /auth/switch-workspace
  */
 export class SwitchWorkspaceDto {
+  @Transform(({ value }) => {
+    return typeof value === 'string' ? `org_${value.replace(/-/g, '')}` : `org_${value}`;
+  })
   @IsUUID()
   organizationId: string;
 }

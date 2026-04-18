@@ -8,6 +8,7 @@ import {
   IsUUID,
 } from 'class-validator';
 import { TaskStatus, TaskPriority } from '../../../common/enums';
+import { Transform } from 'class-transformer';
 
 export class UpdateTaskDto {
   @IsOptional()
@@ -34,6 +35,9 @@ export class UpdateTaskDto {
   priority?: TaskPriority;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    return typeof value === 'string' ? `user_${value.replace(/-/g, '')}` : `user_${value}`;
+  })
   @IsUUID()
   assignedToUserId?: string;
 

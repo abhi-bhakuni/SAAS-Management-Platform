@@ -12,12 +12,14 @@ import { UsersService } from '../../users/services/users.service';
 import { LoginDto, SignupDto, AuthResponseDto, AuthUserDto } from '../dtos/index';
 import { User } from '../../users/entities/user.entity';
 import { UserOrganizationMembership, OrganizationRole } from '../../users/entities/user-organization-membership.entity';
+import { OrganizationsService } from '@/modules/organizations/services/organizations.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private jwtService: JwtService,
     private usersService: UsersService,
+    private organizationsService: OrganizationsService,
     @InjectRepository(UserOrganizationMembership)
     private membershipRepository: Repository<UserOrganizationMembership>,
   ) {}
@@ -30,26 +32,33 @@ export class AuthService {
     try {
       // Set default role if not provided
       if (!signupDto.role) {
-        signupDto.role = 'member' as any;
+        signupDto.role = 'admin' as any;
       }
+
+      // Create organizaion of a new user
+      const new_org = await this.organizationsService.create({
+        name: `${signupDto.firstName}'s Workspace`,
+        slug: `organization-workspace-${signupDto.firstName.toLowerCase()}`,
+      });
 
       // Create user via UsersService (WITHOUT organizationId)
       const user = await this.usersService.create(signupDto as any);
 
-      // Since user has no org membership yet, we can't generate a token
-      // Return user data but no token
-      // Client should handle selecting an org before accessing protected routes
+      // Create membership for the new user in the new organization
+      const membership = this.membershipRepository.create({
+        userId: user.id,
+        organizationId: new_org.id,
+        role: OrganizationRole.OWNER,
+      });
+      await this.membershipRepository.save(membership);
+
+      // Generate token with the new org as selectedOrgId
+      const token = await this.generateToken(user, new_org.id);
+
       return {
-        access_token: '', // Empty token until user joins an org
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          // No selectedOrgId - user must join org first
-        } as any,
-        expiresIn: 0,
+        access_token: token,
+        user: await this.formatUserResponse(user, [membership]),
+        expiresIn: 86400, // 24 hours
       };
     } catch (error) {
       if ((error as any).code === '23505') {

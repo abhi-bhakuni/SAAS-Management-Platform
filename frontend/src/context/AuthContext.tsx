@@ -13,8 +13,11 @@ const hashPassword = async (password: string) => {
 interface User {
   id: string;
   email: string;
+  firstName: string;
+  lastName: string;
   role: string;
   selectedOrgId?: string;
+  selectedOrgRole?: string;
 }
 
 interface AuthContextType {
@@ -57,10 +60,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password: await hashPassword(credentials.password) 
     };
     const data = await authApi.login(secureCredentials);
-    const { accessToken, user: userData } = data;
+    const { access_token, user: userData } = data;
     
-    localStorage.setItem('authToken', accessToken);
-    setToken(accessToken);
+    localStorage.setItem('authToken', access_token);
+    setToken(access_token);
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
   };
@@ -71,10 +74,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password: await hashPassword(signUpData.password) 
     };
     const data = await authApi.register(secureData);
-    const { accessToken, user: userData } = data;
+    const { access_token, user: userData } = data;
     
-    localStorage.setItem('authToken', accessToken);
-    setToken(accessToken);
+    localStorage.setItem('authToken', access_token);
+    setToken(access_token);
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
   };

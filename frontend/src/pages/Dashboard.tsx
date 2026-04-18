@@ -38,7 +38,7 @@ export function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const result = await dashboardApi.getStats();
+        const result = await dashboardApi.getStats(user?.selectedOrgId ?? "");
         setData(result);
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);

@@ -346,7 +346,7 @@ export function Auth() {
                   required
                   fullWidth
                   type="email"
-                  placeholder="you@company.com"
+                  placeholder="example@company.com"
                   size="small"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
