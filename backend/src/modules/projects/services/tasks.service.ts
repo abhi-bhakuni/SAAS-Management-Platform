@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -15,6 +16,7 @@ import { TaskStatus } from '../../../common/enums';
 
 @Injectable()
 export class TasksService {
+  private readonly logger = new Logger(TasksService.name);
   constructor(
     @InjectRepository(Task)
     private readonly taskRepository: Repository<Task>,
@@ -50,10 +52,12 @@ export class TasksService {
 
       return {
         data: tasks.map((t) => this.toResponse(t)),
-        total,
-        page,
-        limit,
-        pages: Math.ceil(total / limit),
+        _metadata: {
+          total,
+          page,
+          limit,
+          pages: Math.ceil(total / limit),
+        }
       };
     }
 
@@ -392,6 +396,7 @@ export class TasksService {
       userId: m.userId,
       firstName: m.user.firstName,
       lastName: m.user.lastName,
+      name: `${m.user.firstName}${m.user.lastName ?? ""}`,
       email: m.user.email,
       role: m.role,
     }));

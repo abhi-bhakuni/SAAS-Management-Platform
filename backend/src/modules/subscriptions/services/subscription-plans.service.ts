@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SubscriptionPlan, SubscriptionPlanType } from '../entities/subscription-plan.entity';
 
 @Injectable()
 export class SubscriptionPlansService {
+  private readonly logger = new Logger(SubscriptionPlansService.name);
   constructor(
     @InjectRepository(SubscriptionPlan)
     private readonly planRepository: Repository<SubscriptionPlan>,

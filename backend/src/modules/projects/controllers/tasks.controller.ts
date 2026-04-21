@@ -9,17 +9,15 @@ import {
   Param,
   Query,
   UseGuards,
-  ForbiddenException,
   Headers,
 } from '@nestjs/common';
 import { TasksService } from '../services/tasks.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { OrgMembershipGuard } from '../../auth/guards/org-membership.guard';
 import { OrgRoleGuard } from '../../auth/guards/org-role.guard';
-import { OrgRoles, CurrentUser } from '../../auth/decorators';
+import { OrgRoles } from '../../auth/decorators';
 import { CreateTaskDto, UpdateTaskDto, AssignTaskDto, UnassignTaskDto, UpdateTaskStatusDto } from '../dtos';
 import { OrganizationRole } from '../../users/entities/user-organization-membership.entity';
-import { UserRole } from '../../../common/enums';
 
 @Controller('tasks')
 @UseGuards(JwtAuthGuard, OrgMembershipGuard)
@@ -27,102 +25,33 @@ export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   /**
-   * GET /tasks
+   * GET /tasks?projectId=:projectId
    * All org members may list tasks for the organization passed in headers.
    */
   @Get()
   async findAll(
     @Headers('x-org-id') orgId: string,
-    @CurrentUser() user: any,
+    @Headers('x-org-user-id') userId: string,
     @Query('projectId') projectId?: string,
     @Query('page') page = '1',
     @Query('limit') limit = '20',
   ) {
-    this.validateWorkspace(orgId, user);
     return this.tasksService.findAll(orgId, projectId, +page || 1, +limit || 20);
   }
 
   /**
-   * GET /tasks/:projectId/:id
-   * All org members may view a single task for the organization passed in headers.
-   */
-  @Get(':projectId/:id')
-  async findOne(
-    @Headers('x-org-id') orgId: string,
-    @Param('projectId') projectId: string,
-    @Param('id') id: string,
-    @CurrentUser() user: any,
-  ) {
-    this.validateWorkspace(orgId, user);
-    return this.tasksService.findOne(projectId, id);
-  }
-
-  /**
-   * POST /tasks/:projectId
-   * Org ADMIN or higher only.
-   */
-  @Post(':projectId')
-  @UseGuards(OrgRoleGuard)
-  @OrgRoles(OrganizationRole.ADMIN)
-  async create(
-    @Headers('x-org-id') orgId: string,
-    @Param('projectId') projectId: string,
-    @Body() dto: CreateTaskDto,
-    @CurrentUser() user: any,
-  ) {
-    this.validateWorkspace(orgId, user);
-    return this.tasksService.create(projectId, user.id, dto);
-  }
-
-  /**
-   * PUT /tasks/organizations/:orgId/projects/:projectId/tasks/:id
-   * Org ADMIN or higher only.
-   */
-  @Put(':projectId/:id')
-  @UseGuards(OrgRoleGuard)
-  @OrgRoles(OrganizationRole.ADMIN)
-  async update(
-    @Headers('x-org-id') orgId: string,
-    @Param('projectId') projectId: string,
-    @Param('id') id: string,
-    @Body() dto: UpdateTaskDto,
-    @CurrentUser() user: any,
-  ) {
-    this.validateWorkspace(orgId, user);
-    return this.tasksService.update(projectId, id, dto, user.id);
-  }
-
-  /**
-   * DELETE /tasks/:projectId/:id
-   * Org ADMIN or higher only.
-   */
-  @Delete(':projectId/:id')
-  @UseGuards(OrgRoleGuard)
-  @OrgRoles(OrganizationRole.ADMIN)
-  async remove(
-    @Headers('x-org-id') orgId: string,
-    @Param('projectId') projectId: string,
-    @Param('id') id: string,
-    @CurrentUser() user: any,
-  ) {
-    this.validateWorkspace(orgId, user);
-    return this.tasksService.remove(projectId, id);
-  }
-
-  /**
-   * GET /tasks/organizations/:orgId/projects/:projectId/tasks/filter/status
+   * GET /tasks/filter/status?projectId=:projectId&status=:status
    * Filter tasks by status.
    */
-  @Get(':projectId/filter/status')
+  @Get('filter/status')
   async findByStatus(
     @Headers('x-org-id') orgId: string,
-    @Param('projectId') projectId: string,
+    @Headers('x-org-user-id') userId: string,
+    @Query('projectId') projectId: string,
     @Query('status') status: string,
     @Query('page') page = '1',
     @Query('limit') limit = '20',
-    @CurrentUser() user: any,
   ) {
-    this.validateWorkspace(orgId, user);
     return this.tasksService.findByStatus(
       projectId,
       status,
@@ -132,108 +61,93 @@ export class TasksController {
   }
 
   /**
-   * GET /tasks/organizations/:orgId/projects/:projectId/tasks/assignee/:userId
+   * GET /tasks/assignee/:targetUserId?projectId=:projectId
    * Get tasks assigned to a specific user.
    */
-  @Get(':projectId/assignee/:userId')
+  @Get('assignee/:targetUserId')
   async findByAssignee(
     @Headers('x-org-id') orgId: string,
-    @Param('projectId') projectId: string,
-    @Param('userId') userId: string,
+    @Headers('x-org-user-id') userId: string,
+    @Param('targetUserId') targetUserId: string,
+    @Query('projectId') projectId: string,
     @Query('page') page = '1',
     @Query('limit') limit = '20',
-    @CurrentUser() user: any,
   ) {
-    this.validateWorkspace(orgId, user);
     return this.tasksService.findByAssignee(
       projectId,
-      userId,
+      targetUserId,
       +page || 1,
       +limit || 20,
     );
   }
 
   /**
-   * GET /tasks/organizations/:orgId/projects/:projectId/tasks/assignable-users
+   * GET /tasks/assignable-users?projectId=:projectId
    * Get all organization members who can be assigned to tasks.
    */
-  @Get(':projectId/assignable-users')
+  @Get('assignable-users')
   async getAssignableUsers(
     @Headers('x-org-id') orgId: string,
-    @Param('projectId') projectId: string,
-    @CurrentUser() user: any,
+    @Headers('x-org-user-id') userId: string,
+    @Query('projectId') projectId: string,
   ) {
-    this.validateWorkspace(orgId, user);
     return this.tasksService.getAssignableUsers(projectId);
   }
 
   /**
-   * POST /tasks/organizations/:orgId/projects/:projectId/tasks/:id/assign
-   * Assign a task to a user (org ADMIN or higher).
+   * GET /tasks/progress/project-stats?projectId=:projectId
+   * Get task progress statistics for the project.
    */
-  @Post(':projectId/:id/assign')
-  @UseGuards(OrgRoleGuard)
-  @OrgRoles(OrganizationRole.ADMIN)
-  async assignUser(
+  @Get('progress/project-stats')
+  async getProjectProgress(
     @Headers('x-org-id') orgId: string,
-    @Param('projectId') projectId: string,
-    @Param('id') taskId: string,
-    @Body() dto: AssignTaskDto,
-    @CurrentUser() user: any,
+    @Headers('x-org-user-id') userId: string,
+    @Query('projectId') projectId: string,
   ) {
-    this.validateWorkspace(orgId, user);
-    return this.tasksService.assignUser(projectId, taskId, dto.assignedToUserId, user.id);
+    return this.tasksService.getProjectProgress(projectId);
   }
 
   /**
-   * PATCH /tasks/organizations/:orgId/projects/:projectId/tasks/:id/unassign
-   * Unassign a task from its current assignee (org ADMIN or higher).
+   * GET /tasks/progress/user-stats/:targetUserId?projectId=:projectId
+   * Get task progress statistics for a user in the project.
    */
-  @Patch(':projectId/:id/unassign')
-  @UseGuards(OrgRoleGuard)
-  @OrgRoles(OrganizationRole.ADMIN)
-  async unassignUser(
+  @Get('progress/user-stats/:targetUserId')
+  async getUserProgress(
     @Headers('x-org-id') orgId: string,
-    @Param('projectId') projectId: string,
-    @Param('id') taskId: string,
-    @CurrentUser() user: any,
+    @Headers('x-org-user-id') userId: string,
+    @Param('targetUserId') targetUserId: string,
+    @Query('projectId') projectId: string,
   ) {
-    this.validateWorkspace(orgId, user);
-    return this.tasksService.unassignUser(projectId, taskId);
+    return this.tasksService.getUserProgress(projectId, targetUserId);
   }
 
   /**
-   * PATCH /tasks/organizations/:orgId/projects/:projectId/tasks/:id/status
-   * Update task status (org ADMIN or higher).
+   * GET /tasks/:id?projectId=:projectId
+   * All org members may view a single task for the organization passed in headers.
    */
-  @Patch(':projectId/:id/status')
-  @UseGuards(OrgRoleGuard)
-  @OrgRoles(OrganizationRole.ADMIN)
-  async updateStatus(
+  @Get(':id')
+  async findOne(
     @Headers('x-org-id') orgId: string,
-    @Param('projectId') projectId: string,
-    @Param('id') taskId: string,
-    @Body() dto: UpdateTaskStatusDto,
-    @CurrentUser() user: any,
+    @Headers('x-org-user-id') userId: string,
+    @Param('id') id: string,
+    @Query('projectId') projectId: string,
   ) {
-    this.validateWorkspace(orgId, user);
-    return this.tasksService.updateStatus(projectId, taskId, user.id, dto);
+    return this.tasksService.findOne(projectId, id);
   }
 
   /**
-   * GET /tasks/organizations/:orgId/projects/:projectId/tasks/:id/status-history
+   * GET /tasks/:id/status-history?projectId=:projectId
    * Get full status change history for a task.
    */
-  @Get(':projectId/:id/status-history')
+  @Get(':id/status-history')
   async getStatusHistory(
     @Headers('x-org-id') orgId: string,
-    @Param('projectId') projectId: string,
+    @Headers('x-org-user-id') userId: string,
     @Param('id') taskId: string,
+    @Query('projectId') projectId: string,
     @Query('page') page = '1',
     @Query('limit') limit = '50',
-    @CurrentUser() user: any,
   ) {
-    this.validateWorkspace(orgId, user);
     return this.tasksService.getStatusHistory(
       projectId,
       taskId,
@@ -243,45 +157,101 @@ export class TasksController {
   }
 
   /**
-   * GET /tasks/organizations/:orgId/projects/:projectId/progress/project-stats
-   * Get task progress statistics for the project.
+   * POST /tasks?projectId=:projectId
+   * Org ADMIN or higher only.
    */
-  @Get(':projectId/progress/project-stats')
-  async getProjectProgress(
+  @Post()
+  @UseGuards(OrgRoleGuard)
+  @OrgRoles(OrganizationRole.ADMIN)
+  async create(
     @Headers('x-org-id') orgId: string,
-    @Param('projectId') projectId: string,
-    @CurrentUser() user: any,
+    @Headers('x-org-user-id') userId: string,
+    @Query('projectId') projectId: string,
+    @Body() dto: CreateTaskDto,
   ) {
-    this.validateWorkspace(orgId, user);
-    return this.tasksService.getProjectProgress(projectId);
+    return this.tasksService.create(projectId, userId, dto);
   }
 
   /**
-   * GET /tasks/organizations/:orgId/projects/:projectId/progress/user/:userId
-   * Get task progress statistics for a user within the project.
+   * PUT /tasks/:id?projectId=:projectId
+   * Org ADMIN or higher only.
    */
-  @Get(':projectId/progress/user/:userId')
-  async getUserProgress(
+  @Put(':id')
+  @UseGuards(OrgRoleGuard)
+  @OrgRoles(OrganizationRole.ADMIN)
+  async update(
     @Headers('x-org-id') orgId: string,
-    @Param('projectId') projectId: string,
-    @Param('userId') userId: string,
-    @CurrentUser() user: any,
+    @Headers('x-org-user-id') userId: string,
+    @Param('id') id: string,
+    @Query('projectId') projectId: string,
+    @Body() dto: UpdateTaskDto,
   ) {
-    this.validateWorkspace(orgId, user);
-    return this.tasksService.getUserProgress(projectId, userId);
+    return this.tasksService.update(projectId, id, dto, userId);
   }
 
-  // ─── Private helpers ────────────────────────────────────────────────────────
+  /**
+   * DELETE /tasks/:id?projectId=:projectId
+   * Org ADMIN or higher only.
+   */
+  @Delete(':id')
+  @UseGuards(OrgRoleGuard)
+  @OrgRoles(OrganizationRole.ADMIN)
+  async remove(
+    @Headers('x-org-id') orgId: string,
+    @Headers('x-org-user-id') userId: string,
+    @Param('id') id: string,
+    @Query('projectId') projectId: string,
+  ) {
+    return this.tasksService.remove(projectId, id);
+  }
 
   /**
-   * Ensure the request's orgId matches the JWT workspace context.
-   * System ADMINs bypass this check.
+   * POST /tasks/:id/assign?projectId=:projectId
+   * Assign a task to a user (org ADMIN or higher).
    */
-  private validateWorkspace(orgId: string, user: any) {
-    if (user.role !== UserRole.ADMIN && orgId !== user.selectedOrgId) {
-      throw new ForbiddenException(
-        'Workspace mismatch: cannot access a different organization than your current workspace',
-      );
-    }
+  @Post(':id/assign')
+  @UseGuards(OrgRoleGuard)
+  @OrgRoles(OrganizationRole.ADMIN)
+  async assignUser(
+    @Headers('x-org-id') orgId: string,
+    @Headers('x-org-user-id') userId: string,
+    @Param('id') taskId: string,
+    @Query('projectId') projectId: string,
+    @Body() dto: AssignTaskDto,
+  ) {
+    return this.tasksService.assignUser(projectId, taskId, dto.assignedToUserId, userId);
+  }
+
+  /**
+   * PATCH /tasks/:id/unassign?projectId=:projectId
+   * Unassign a task from its current assignee (org ADMIN or higher).
+   */
+  @Patch(':id/unassign')
+  @UseGuards(OrgRoleGuard)
+  @OrgRoles(OrganizationRole.ADMIN)
+  async unassignUser(
+    @Headers('x-org-id') orgId: string,
+    @Headers('x-org-user-id') userId: string,
+    @Param('id') taskId: string,
+    @Query('projectId') projectId: string,
+  ) {
+    return this.tasksService.unassignUser(projectId, taskId);
+  }
+
+  /**
+   * PATCH /tasks/:id/status?projectId=:projectId
+   * Update task status (org ADMIN or higher).
+   */
+  @Patch(':id/status')
+  @UseGuards(OrgRoleGuard)
+  @OrgRoles(OrganizationRole.ADMIN)
+  async updateStatus(
+    @Headers('x-org-id') orgId: string,
+    @Headers('x-org-user-id') userId: string,
+    @Param('id') taskId: string,
+    @Query('projectId') projectId: string,
+    @Body() dto: UpdateTaskStatusDto,
+  ) {
+    return this.tasksService.updateStatus(projectId, taskId, userId, dto);
   }
 }

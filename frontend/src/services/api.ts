@@ -163,7 +163,9 @@ export const taskApi = {
   },
   getAssignableUsers: async (projectId: string): Promise<any[]> => {
     if (isSandboxMode()) return [{ id: 'u1', name: 'Abhishek B.' }, { id: 'u2', name: 'Sarah M.' }];
-    const response = await api.get(`/tasks/${projectId}/assignable-users`);
+    const response = await api.get(`/tasks/assignable-users`, {
+      params: projectId ? { projectId } : undefined,
+    });
     return response.data;
   },
 };

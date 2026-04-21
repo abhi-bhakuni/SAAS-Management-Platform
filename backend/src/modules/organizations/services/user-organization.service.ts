@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserOrganizationMembership, OrganizationRole } from '../../users/entities/user-organization-membership.entity';
 import { Organization } from '../entities/organization.entity';
@@ -8,6 +8,7 @@ import { OrganizationMembershipRepository } from '../../users/repositories/organ
 
 @Injectable()
 export class UserOrganizationService {
+  private readonly logger = new Logger(UserOrganizationService.name);
   constructor(
     private membershipRepository: OrganizationMembershipRepository,
     @InjectRepository(Organization)

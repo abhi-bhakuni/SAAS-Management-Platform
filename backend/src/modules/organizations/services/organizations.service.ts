@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Organization } from '../entities/organization.entity';
@@ -13,6 +13,7 @@ import { TaskStatus, ProjectStatus } from '../../../common/enums';
 
 @Injectable()
 export class OrganizationsService {
+  private readonly logger = new Logger(OrganizationsService.name);
   constructor(
     @InjectRepository(Organization)
     private readonly organizationRepository: Repository<Organization>,

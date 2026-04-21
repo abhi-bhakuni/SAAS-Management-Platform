@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -11,6 +12,7 @@ import { CreateProjectDto, UpdateProjectDto } from '../dtos';
 
 @Injectable()
 export class ProjectsService {
+  private readonly logger = new Logger(ProjectsService.name);
   constructor(
     @InjectRepository(Project)
     private readonly projectRepository: Repository<Project>,
@@ -49,10 +51,12 @@ export class ProjectsService {
 
     return {
       data,
-      total,
-      page,
-      limit,
-      pages: Math.ceil(total / limit),
+      _metadata: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit),
+      },
     };
   }
 

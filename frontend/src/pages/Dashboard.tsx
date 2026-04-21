@@ -394,7 +394,7 @@ export function Dashboard() {
             onClick={handleCreateProject}
             variant="contained"
             disableElevation
-            disabled={!newProject.name}
+            disabled={!newProject.name || !newProject.description}
             sx={{
               borderRadius: '6px',
               textTransform: 'none',

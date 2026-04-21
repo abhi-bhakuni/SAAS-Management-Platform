@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { taskApi } from '../services/api';
@@ -67,6 +67,14 @@ export function ProjectDetails() {
   const [selectedAssignee, setSelectedAssignee] = useState<UserOption>({ id: 'unassigned', name: 'Unassigned', avatar: '' });
   const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
   const [isActivityOpen, setIsActivityOpen] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isAddModalOpen) {
+      const timer = setTimeout(() => titleInputRef.current?.focus(), 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isAddModalOpen]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -80,9 +88,9 @@ export function ProjectDetails() {
         
         const mappedUsers = Array.isArray(usersData) ? usersData.map((u: any) => ({
           id: u.id,
-          firstName: u.firstName || u.name?.split(' ')[0],
-          lastName: u.lastName || u.name?.split(' ')[1] || '',
-          name: u.name || `${u.firstName} ${u.lastName}`,
+          firstName: u.firstName || '',
+          lastName: u.lastName || '',
+          name: u.name || '',
           email: u.email || '',
           avatar: u.avatar || ''
         })) : [];
@@ -585,31 +593,34 @@ export function ProjectDetails() {
         }}
       >
         <DialogContent sx={{ p: 4 }}>
-          {/* Title Field - High Prominence */}
-          <TextField
-            autoFocus
-            placeholder="What needs to be done?"
-            variant="standard"
-            fullWidth
-            value={newTask.title}
-            onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && newTask.title) {
-                e.preventDefault();
-                handleCreateTask();
-              }
-            }}
-            InputProps={{
-              disableUnderline: true,
-              sx: { 
-                fontSize: '1.4rem', 
-                fontWeight: 600, 
-                color: '#FFFFFF', 
-                mb: 1.5,
-                '& input::placeholder': { color: 'rgba(255, 255, 255, 0.3)', opacity: 1 }
-              }
-            }}
-          />
+
+          <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', mb: 0 }}>
+            <TextField
+              inputRef={titleInputRef}
+              autoFocus
+              placeholder="What needs to be done?"
+              variant="standard"
+              fullWidth
+              value={newTask.title}
+              onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newTask.title) {
+                  e.preventDefault();
+                  handleCreateTask();
+                }
+              }}
+              InputProps={{
+                disableUnderline: true,
+                sx: { 
+                  fontSize: '1.4rem', 
+                  fontWeight: 600, 
+                  color: '#FFFFFF', 
+                  mb: 1.5,
+                  '& input::placeholder': { color: 'rgba(255, 255, 255, 0.3)', opacity: 1 }
+                }
+              }}
+            />
+          </Box>
           
           {/* Description Field */}
           <TextField
@@ -741,7 +752,7 @@ export function ProjectDetails() {
             onClick={handleCreateTask} 
             variant="contained"
             disableElevation
-            disabled={!newTask.title}
+            disabled={!newTask.title || !newTask.description || !newTask.dueDate || !selectedAssignee.id}
             sx={{ 
               borderRadius: '6px', 
               textTransform: 'none', 

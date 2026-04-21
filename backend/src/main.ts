@@ -7,7 +7,9 @@ import { LoggingInterceptor } from './interceptors/logging.interceptor';
 import { TimeoutInterceptor } from './interceptors/timeout.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: ['log', 'debug', 'error', 'warn']
+  });
   const logger = new Logger('Bootstrap');
 
   // Global exception filter

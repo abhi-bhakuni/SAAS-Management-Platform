@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   ConflictException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -16,6 +17,7 @@ import { OrganizationsService } from '@/modules/organizations/services/organizat
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   constructor(
     private jwtService: JwtService,
     private usersService: UsersService,
