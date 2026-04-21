@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -19,18 +19,100 @@ import {
   LinearProgress
 } from '@mui/material';
 import { Sidebar } from '../components/Sidebar';
+import { useAuth } from '../context/AuthContext';
+import { organizationApi, dashboardApi, billingApi } from '../services/api';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
 import CreditCardOutlinedIcon from '@mui/icons-material/CreditCardOutlined';
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
 import AddIcon from '@mui/icons-material/Add';
 
+type Member = {
+  userId: string;
+  role: string;
+  joinedAt: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+};
+
 export function Settings() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [isMembersLoading, setIsMembersLoading] = useState(false);
+  const [projectCount, setProjectCount] = useState<number | null>(null);
+  const [subscription, setSubscription] = useState<any | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<any>(null);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
+
+  useEffect(() => {
+    const fetchMembers = async () => {
+      if (!user?.selectedOrgId) {
+        setMembers([]);
+        setProjectCount(null);
+        return;
+      }
+
+      setIsMembersLoading(true);
+      try {
+        const [membersResponse, dashboardResponse] = await Promise.all([
+          organizationApi.getMembers(1, 50),
+          dashboardApi.getStats(user.selectedOrgId),
+        ]);
+        setMembers(membersResponse.data ?? []);
+        setProjectCount(dashboardResponse?.stats?.totalProjects ?? null);
+      } catch (error) {
+        console.error('Failed to load team members or dashboard data', error);
+        setMembers([]);
+        setProjectCount(null);
+      } finally {
+        setIsMembersLoading(false);
+      }
+    };
+
+    fetchMembers();
+  }, [user?.selectedOrgId]);
+
+  useEffect(() => {
+    const fetchBillingData = async () => {
+      if (!user?.id) {
+        setSubscription(null);
+        setPaymentMethod(null);
+        return;
+      }
+
+      try {
+        const billingResponse = await billingApi.getMySubscription();
+        setSubscription(billingResponse.subscription ?? null);
+        setPaymentMethod(billingResponse.paymentMethod ?? null);
+      } catch (error) {
+        console.error('Failed to load billing information', error);
+        setSubscription(null);
+        setPaymentMethod(null);
+      }
+    };
+
+    fetchBillingData();
+  }, [user?.id]);
+
+  const currentPlan = subscription?.subscriptionPlan;
+  const currentPlanName = currentPlan?.name ?? 'Free Tier';
+  const currentPlanDescription = currentPlan?.description ?? 'Perfect for individual developers and small experiments.';
+  const currentPlanPrice = Number(currentPlan?.price ?? 0);
+  const currentPlanBillingCycle = currentPlan?.billingCycle ?? 'month';
+  const projectLimit = Number(currentPlan?.limits?.projects ?? 5);
+  const paymentMethodLabel = paymentMethod?.card
+    ? `${paymentMethod.card.brand?.toUpperCase() ?? 'Card'} ending in ${paymentMethod.card.last4}`
+    : 'No payment method on file';
+  const paymentMethodExpiry = paymentMethod?.card ? `${paymentMethod.card.exp_month}/${paymentMethod.card.exp_year}` : null;
+  const nextBillingDate = subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : null;
 
   return (
     <Box sx={{ display: 'flex', height: '100vh', backgroundColor: '#0F0F11', overflow: 'hidden' }}>
@@ -85,7 +167,10 @@ export function Settings() {
                 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <Box sx={{ position: 'relative' }}>
-                    <Avatar sx={{ width: 80, height: 80, border: '2px solid rgba(255, 255, 255, 0.1)' }} src="https://i.pravatar.cc/150?u=abhishek" />
+                    <Avatar
+                      sx={{ width: 80, height: 80, border: '2px solid rgba(255, 255, 255, 0.1)' }}
+                      src={`https://i.pravatar.cc/150?u=${user?.email ?? 'profile'}`}
+                    />
                     <Button 
                       size="small" 
                       sx={{ 
@@ -112,8 +197,20 @@ export function Settings() {
                 </Box>
 
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
-                  <TextField fullWidth label="Full Name" defaultValue="Abhishek Bhakuni" variant="outlined" sx={inputStyle} />
-                  <TextField fullWidth label="Email Address" defaultValue="abhishek@demo.com" variant="outlined" sx={inputStyle} />
+                  <TextField
+                    fullWidth
+                    label="Full Name"
+                    defaultValue={`${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim()}
+                    variant="outlined"
+                    sx={inputStyle}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Email Address"
+                    defaultValue={user?.email ?? ''}
+                    variant="outlined"
+                    sx={inputStyle}
+                  />
                 </Box>
                 
                 <TextField fullWidth multiline rows={3} label="Bio" placeholder="Tell us about yourself..." variant="outlined" sx={inputStyle} />
@@ -150,18 +247,21 @@ export function Settings() {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {[
-                        { name: 'Abhishek Bhakuni', email: 'abhishek@demo.com', role: 'Owner', status: 'Active' },
-                        { name: 'Sarah Miller', email: 'sarah@demo.com', role: 'Maintainer', status: 'Active' },
-                        { name: 'John Doe', email: 'john@demo.com', role: 'Contributor', status: 'Pending' },
-                      ].map((member) => (
-                        <TableRow key={member.email}>
+                    {isMembersLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={4} sx={{ py: 4, textAlign: 'center' }}>
+                          <Typography color="text.disabled">Loading members…</Typography>
+                        </TableCell>
+                      </TableRow>
+                    ) : members.length > 0 ? (
+                      members.map((member) => (
+                        <TableRow key={member.userId}>
                           <TableCell sx={cellStyle}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                              <Avatar sx={{ width: 32, height: 32 }} src={`https://i.pravatar.cc/150?u=${member.email}`} />
+                              <Avatar sx={{ width: 32, height: 32 }} src={`https://i.pravatar.cc/150?u=${member.user.email}`} />
                               <Box>
-                                <Typography variant="body2" fontWeight="700">{member.name}</Typography>
-                                <Typography variant="caption" color="text.disabled">{member.email}</Typography>
+                                <Typography variant="body2" fontWeight="700">{`${member.user.firstName} ${member.user.lastName ?? ''}`}</Typography>
+                                <Typography variant="caption" color="text.disabled">{member.user.email}</Typography>
                               </Box>
                             </Box>
                           </TableCell>
@@ -169,19 +269,26 @@ export function Settings() {
                             <Typography variant="body2">{member.role}</Typography>
                           </TableCell>
                           <TableCell sx={cellStyle}>
-                            <Chip label={member.status} size="small" sx={{ 
+                            <Chip label="Active" size="small" sx={{ 
                               fontSize: '0.65rem', 
                               fontWeight: 700,
-                              backgroundColor: member.status === 'Active' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                              color: member.status === 'Active' ? '#10B981' : '#F59E0B'
+                              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                              color: '#10B981'
                             }} />
                           </TableCell>
                           <TableCell sx={cellStyle} align="right">
                             <Button size="small" sx={{ color: 'text.disabled', textTransform: 'none' }}>Remove</Button>
                           </TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} sx={{ py: 4, textAlign: 'center' }}>
+                          <Typography color="text.disabled">No members found for this organization.</Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
                   </Table>
                 </TableContainer>
               </Box>
@@ -206,15 +313,15 @@ export function Settings() {
                     gap: 2
                   }}>
                     <Typography variant="subtitle2" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Current Plan</Typography>
-                    <Typography variant="h4" fontWeight="800">Free Tier</Typography>
-                    <Typography variant="body2" color="text.secondary">Perfect for individual developers and small experiments.</Typography>
+                    <Typography variant="h4" fontWeight="800">{currentPlanName}</Typography>
+                    <Typography variant="body2" color="text.secondary">{currentPlanDescription}</Typography>
                     <Divider sx={{ my: 1, opacity: 0.05 }} />
                     <Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography variant="caption" color="text.disabled">Projects</Typography>
-                        <Typography variant="caption" fontWeight="700">3 / 5</Typography>
+                        <Typography variant="caption" fontWeight="700">{projectCount !== null ? `${projectCount} / ${projectLimit}` : `— / ${projectLimit}`}</Typography>
                       </Box>
-                      <LinearProgress variant="determinate" value={60} sx={{ height: 6, borderRadius: 3, backgroundColor: 'rgba(255, 255, 255, 0.05)', '& .MuiLinearProgress-bar': { backgroundColor: '#FFFFFF' } }} />
+                      <LinearProgress variant="determinate" value={projectCount === null ? 0 : Math.min((projectCount / projectLimit) * 100, 100)} sx={{ height: 6, borderRadius: 3, backgroundColor: 'rgba(255, 255, 255, 0.05)', '& .MuiLinearProgress-bar': { backgroundColor: '#FFFFFF' } }} />
                     </Box>
                   </Card>
 
@@ -236,7 +343,12 @@ export function Settings() {
                     <Typography variant="h4" fontWeight="800">Pro Plan</Typography>
                     <Typography variant="body2" sx={{ opacity: 0.8 }}>Scale your team with unlimited projects and advanced analytics.</Typography>
                     <Divider sx={{ my: 1, opacity: 0.1, backgroundColor: '#000000' }} />
-                    <Typography variant="h5" fontWeight="800">$29<Box component="span" sx={{ fontSize: '1rem', fontWeight: 500, opacity: 0.6 }}>/month</Box></Typography>
+                    <Typography variant="h5" fontWeight="800">
+                      {currentPlanPrice > 0 ? `$${currentPlanPrice}` : 'Free'}
+                      {currentPlanPrice > 0 && (
+                        <Box component="span" sx={{ fontSize: '1rem', fontWeight: 500, opacity: 0.6 }}>/ {currentPlanBillingCycle}</Box>
+                      )}
+                    </Typography>
                     <Button variant="contained" disableElevation sx={{ mt: 'auto', backgroundColor: '#000000', color: '#FFFFFF', fontWeight: 800, textTransform: 'none', borderRadius: '8px', py: 1, '&:hover': { backgroundColor: '#27272A' } }}>
                       Select Pro 
                     </Button>
@@ -247,7 +359,18 @@ export function Settings() {
                   <Typography variant="subtitle1" fontWeight="700" mb={2}>Payment Method</Typography>
                   <Box sx={{ p: 2, borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', alignItems: 'center', gap: 2 }}>
                     <CreditCardOutlinedIcon sx={{ color: 'text.disabled' }} />
-                    <Typography variant="body2" fontWeight="600">Visa ending in 4242</Typography>
+                    <Box>
+                      <Typography variant="body2" fontWeight="600">{paymentMethodLabel}</Typography>
+                      <Typography variant="caption" color="text.disabled">
+                        {paymentMethod
+                          ? paymentMethodExpiry
+                            ? `Expires ${paymentMethodExpiry}`
+                            : nextBillingDate
+                              ? `Next billing ${nextBillingDate}`
+                              : 'Payment method is on file'
+                          : 'Update your billing information to enable paid plans.'}
+                      </Typography>
+                    </Box>
                     <Box sx={{ flexGrow: 1 }} />
                     <Button size="small" sx={{ color: 'text.disabled' }}>Update</Button>
                   </Box>

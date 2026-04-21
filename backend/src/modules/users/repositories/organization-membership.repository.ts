@@ -62,10 +62,12 @@ export class OrganizationMembershipRepository extends Repository<UserOrganizatio
    */
   async findOrgMembers(organizationId: string, page = 1, limit = 20): Promise<{
     data: UserOrganizationMembership[];
-    total: number;
-    page: number;
-    limit: number;
-    pages: number;
+    _metadata: {
+      total: number;
+      page: number;
+      limit: number;
+      pages: number;
+    }
   }> {
     const [members, total] = await this.findAndCount({
       where: { organizationId },
@@ -77,10 +79,12 @@ export class OrganizationMembershipRepository extends Repository<UserOrganizatio
 
     return {
       data: members,
-      total,
-      page,
-      limit,
-      pages: Math.ceil(total / limit),
+      _metadata: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit),
+      },
     };
   }
 

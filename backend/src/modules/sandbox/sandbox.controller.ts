@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { SandboxService } from './sandbox.service';
 import { Public } from '../auth/decorators';
 
@@ -25,5 +25,10 @@ export class SandboxController {
   @Get('activity')
   getActivity() {
     return this.sandboxService.getActivity();
+  }
+
+  @Get('members')
+  getMembers(@Query('page') page = 1, @Query('limit') limit = 50) {
+    return this.sandboxService.getMembers(+page, +limit);
   }
 }

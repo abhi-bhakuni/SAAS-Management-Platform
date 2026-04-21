@@ -72,11 +72,11 @@ export function ProjectDetails() {
     const fetchData = async () => {
       try {
         const [tasksData, usersData] = await Promise.all([
-          taskApi.getTasks(user?.selectedOrgId, projectId),
-          taskApi.getAssignableUsers(user?.selectedOrgId || 'guest', projectId || 'sandbox')
+          taskApi.getTasks(projectId),
+          taskApi.getAssignableUsers(projectId || 'sandbox')
         ]);
-        
-        setTasks((tasksData as any).data || tasksData);
+        const taskPayload = tasksData as any;
+        setTasks(Array.isArray(taskPayload) ? taskPayload : (taskPayload.data || []));
         
         const mappedUsers = Array.isArray(usersData) ? usersData.map((u: any) => ({
           id: u.id,
@@ -111,7 +111,7 @@ export function ProjectDetails() {
   const handleCreateTask = async () => {
     if (!newTask.title || !user?.selectedOrgId || !projectId) return;
     try {
-      const created = await taskApi.createTask(user.selectedOrgId, projectId, {
+      const created = await taskApi.createTask(projectId, {
         title: newTask.title,
         description: newTask.description,
         status: newTask.status || 'todo',
@@ -145,7 +145,7 @@ export function ProjectDetails() {
         setSelectedTask({ ...selectedTask, status: newStatus });
       }
       
-      await taskApi.updateTaskStatus(user.selectedOrgId, projectId, taskId, newStatus);
+      await taskApi.updateTaskStatus(projectId, taskId, newStatus);
     } catch (error) {
       console.error("Failed to update status", error);
     }
@@ -160,9 +160,8 @@ export function ProjectDetails() {
     if (!user?.selectedOrgId || !projectId || !selectedTask) return;
     try {
       const updatedTask = await taskApi.updateTask(
-        user.selectedOrgId, 
-        projectId, 
-        selectedTask.id, 
+        projectId,
+        selectedTask.id,
         {
           title: selectedTask.title,
           description: selectedTask.description,
@@ -182,7 +181,7 @@ export function ProjectDetails() {
     if (!user?.selectedOrgId || !projectId || !selectedTask) return;
     if (!window.confirm("Are you sure you want to delete this task?")) return;
     try {
-      await taskApi.deleteTask(user.selectedOrgId, projectId, selectedTask.id);
+      await taskApi.deleteTask(projectId, selectedTask.id);
       setTasks(tasks.filter(t => t.id !== selectedTask.id));
       setIsDrawerOpen(false);
       setSelectedTask(null);

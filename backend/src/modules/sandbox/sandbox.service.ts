@@ -117,4 +117,49 @@ export class SandboxService {
       }
     ];
   }
+
+  getMembers(page = 1, limit = 50) {
+    const members = [
+      {
+        userId: 'u1',
+        role: 'Owner',
+        joinedAt: '2024-01-15',
+        user: {
+          id: 'u1',
+          email: 'abhishek@demo.com',
+          firstName: 'Abhishek',
+          lastName: 'Bhakuni',
+        },
+      },
+      {
+        userId: 'u2',
+        role: 'Maintainer',
+        joinedAt: '2024-02-10',
+        user: {
+          id: 'u2',
+          email: 'sarah@demo.com',
+          firstName: 'Sarah',
+          lastName: 'Miller',
+        },
+      },
+      {
+        userId: 'u3',
+        role: 'Contributor',
+        joinedAt: '2024-02-25',
+        user: {
+          id: 'u3',
+          email: 'john@demo.com',
+          firstName: 'John',
+          lastName: 'Doe',
+        },
+      },
+    ];
+
+    return {
+      data: members,
+      total: members.length,
+      page,
+      limit,
+    };
+  }
 }

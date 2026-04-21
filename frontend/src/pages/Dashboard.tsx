@@ -47,7 +47,7 @@ export function Dashboard() {
       }
     };
     fetchData();
-  }, []);
+  }, [user]);
 
   const handleOpenModal = () => {
     if (!user) {
@@ -62,11 +62,11 @@ export function Dashboard() {
   const handleCreateProject = async () => {
     if (!newProject.name || !user?.selectedOrgId) return;
     try {
-      await projectsApi.createProject(user.selectedOrgId, newProject);
+      await projectsApi.createProject(newProject);
       setNewProject({ name: '', description: '' });
       handleCloseModal();
       // Refresh dashboard stats after creating a project
-      const result = await dashboardApi.getStats();
+      const result = await dashboardApi.getStats(user?.selectedOrgId ?? "");
       setData(result);
     } catch (error) {
       console.error('Failed to create project', error);
@@ -237,8 +237,10 @@ export function Dashboard() {
               
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
-                  <Typography variant="caption" color="text.disabled" fontWeight="700">WEEKLY COMPLETION RATE</Typography>
-                  <Typography variant="h5" fontWeight="800">76.4%</Typography>
+                  <Typography variant="caption" color="text.disabled" fontWeight="700">MONTHLY COMPLETION RATE</Typography>
+                  <Typography variant="h5" fontWeight="800">
+                    {((data?.projectStatus.find((s: any) => s.name === "Completed")?.value ?? 0) * 100) / (data?.projectStatus.reduce((sum: number, s: any) => sum + (s.value ?? 0), 0) || 1)}%
+                  </Typography>
                 </Box>
                 <Button size="small" onClick={() => navigate('/tasks')} sx={{ color: 'primary.main', fontWeight: 700 }}>View Details</Button>
               </Box>

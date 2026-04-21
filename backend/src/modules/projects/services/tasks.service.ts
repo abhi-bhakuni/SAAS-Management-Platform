@@ -28,25 +28,45 @@ export class TasksService {
   ) {}
 
   /**
-   * List all tasks within a project (paginated).
+   * List tasks for an organization, optionally filtered by project.
    */
-  async findAll(projectId: string, page = 1, limit = 20) {
-    // Verify project exists
-    const project = await this.projectRepository.findOne({
-      where: { id: projectId },
-    });
+  async findAll(organizationId: string, projectId?: string, page = 1, limit = 20) {
+    if (projectId) {
+      const project = await this.projectRepository.findOne({
+        where: { id: projectId, organizationId },
+      });
 
-    if (!project) {
-      throw new NotFoundException(`Project with ID ${projectId} not found`);
+      if (!project) {
+        throw new NotFoundException(`Project with ID ${projectId} not found in organization ${organizationId}`);
+      }
+
+      const [tasks, total] = await this.taskRepository.findAndCount({
+        where: { projectId },
+        relations: ['assignedTo', 'createdBy'],
+        order: { createdAt: 'DESC' },
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+
+      return {
+        data: tasks.map((t) => this.toResponse(t)),
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit),
+      };
     }
 
-    const [tasks, total] = await this.taskRepository.findAndCount({
-      where: { projectId },
-      relations: ['assignedTo', 'createdBy'],
-      order: { createdAt: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    const [tasks, total] = await this.taskRepository
+      .createQueryBuilder('task')
+      .leftJoinAndSelect('task.assignedTo', 'assignedTo')
+      .leftJoinAndSelect('task.createdBy', 'createdBy')
+      .leftJoin('task.project', 'project')
+      .where('project.organizationId = :organizationId', { organizationId })
+      .orderBy('task.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
 
     return {
       data: tasks.map((t) => this.toResponse(t)),

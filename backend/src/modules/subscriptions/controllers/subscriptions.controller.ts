@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Param, UseGuards, Request, BadRequestExcep
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SubscriptionsService, CreateSubscriptionDto } from '../services/subscriptions.service';
 import { SubscriptionPlansService } from '../services/subscription-plans.service';
+import { StripeService } from '../services/stripe.service';
 
 @Controller('subscriptions')
 @UseGuards(JwtAuthGuard)
@@ -9,6 +10,7 @@ export class SubscriptionsController {
   constructor(
     private readonly subscriptionsService: SubscriptionsService,
     private readonly subscriptionPlansService: SubscriptionPlansService,
+    private readonly stripeService: StripeService,
   ) {}
 
   // Get current user's active subscription
@@ -16,7 +18,23 @@ export class SubscriptionsController {
   async getMySubscription(@Request() req) {
     const userId = req.user.id;
     const subscription = await this.subscriptionsService.getUserActiveSubscription(userId);
-    return { subscription };
+
+    if (!subscription) {
+      return { subscription: null, paymentMethod: null };
+    }
+
+    let paymentMethod: any = null;
+    try {
+      const paymentMethods = await this.stripeService.listCustomerPaymentMethods(
+        subscription.stripeCustomerId,
+        'card',
+      );
+      paymentMethod = paymentMethods?.data?.[0] ?? null;
+    } catch (error) {
+      // Ignore missing payment method details
+    }
+
+    return { subscription, paymentMethod };
   }
 
   // Get all subscriptions for current user

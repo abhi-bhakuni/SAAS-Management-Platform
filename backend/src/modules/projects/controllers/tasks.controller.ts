@@ -10,6 +10,7 @@ import {
   Query,
   UseGuards,
   ForbiddenException,
+  Headers,
 } from '@nestjs/common';
 import { TasksService } from '../services/tasks.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -20,34 +21,34 @@ import { CreateTaskDto, UpdateTaskDto, AssignTaskDto, UnassignTaskDto, UpdateTas
 import { OrganizationRole } from '../../users/entities/user-organization-membership.entity';
 import { UserRole } from '../../../common/enums';
 
-@Controller('organizations/:orgId/projects/:projectId/tasks')
+@Controller('tasks')
 @UseGuards(JwtAuthGuard, OrgMembershipGuard)
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
   /**
-   * GET /organizations/:orgId/projects/:projectId/tasks
-   * All org members may list tasks.
+   * GET /tasks
+   * All org members may list tasks for the organization passed in headers.
    */
   @Get()
   async findAll(
-    @Param('orgId') orgId: string,
-    @Param('projectId') projectId: string,
+    @Headers('x-org-id') orgId: string,
     @CurrentUser() user: any,
+    @Query('projectId') projectId?: string,
     @Query('page') page = '1',
     @Query('limit') limit = '20',
   ) {
     this.validateWorkspace(orgId, user);
-    return this.tasksService.findAll(projectId, +page || 1, +limit || 20);
+    return this.tasksService.findAll(orgId, projectId, +page || 1, +limit || 20);
   }
 
   /**
-   * GET /organizations/:orgId/projects/:projectId/tasks/:id
-   * All org members may view a single task.
+   * GET /tasks/:projectId/:id
+   * All org members may view a single task for the organization passed in headers.
    */
-  @Get(':id')
+  @Get(':projectId/:id')
   async findOne(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Param('projectId') projectId: string,
     @Param('id') id: string,
     @CurrentUser() user: any,
@@ -57,14 +58,14 @@ export class TasksController {
   }
 
   /**
-   * POST /organizations/:orgId/projects/:projectId/tasks
+   * POST /tasks/:projectId
    * Org ADMIN or higher only.
    */
-  @Post()
+  @Post(':projectId')
   @UseGuards(OrgRoleGuard)
   @OrgRoles(OrganizationRole.ADMIN)
   async create(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Param('projectId') projectId: string,
     @Body() dto: CreateTaskDto,
     @CurrentUser() user: any,
@@ -74,14 +75,14 @@ export class TasksController {
   }
 
   /**
-   * PUT /organizations/:orgId/projects/:projectId/tasks/:id
+   * PUT /tasks/organizations/:orgId/projects/:projectId/tasks/:id
    * Org ADMIN or higher only.
    */
-  @Put(':id')
+  @Put(':projectId/:id')
   @UseGuards(OrgRoleGuard)
   @OrgRoles(OrganizationRole.ADMIN)
   async update(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Param('projectId') projectId: string,
     @Param('id') id: string,
     @Body() dto: UpdateTaskDto,
@@ -92,14 +93,14 @@ export class TasksController {
   }
 
   /**
-   * DELETE /organizations/:orgId/projects/:projectId/tasks/:id
+   * DELETE /tasks/:projectId/:id
    * Org ADMIN or higher only.
    */
-  @Delete(':id')
+  @Delete(':projectId/:id')
   @UseGuards(OrgRoleGuard)
   @OrgRoles(OrganizationRole.ADMIN)
   async remove(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Param('projectId') projectId: string,
     @Param('id') id: string,
     @CurrentUser() user: any,
@@ -109,12 +110,12 @@ export class TasksController {
   }
 
   /**
-   * GET /organizations/:orgId/projects/:projectId/tasks?status=pending
+   * GET /tasks/organizations/:orgId/projects/:projectId/tasks/filter/status
    * Filter tasks by status.
    */
-  @Get('filter/status')
+  @Get(':projectId/filter/status')
   async findByStatus(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Param('projectId') projectId: string,
     @Query('status') status: string,
     @Query('page') page = '1',
@@ -131,12 +132,12 @@ export class TasksController {
   }
 
   /**
-   * GET /organizations/:orgId/projects/:projectId/tasks/assignee/:userId
+   * GET /tasks/organizations/:orgId/projects/:projectId/tasks/assignee/:userId
    * Get tasks assigned to a specific user.
    */
-  @Get('assignee/:userId')
+  @Get(':projectId/assignee/:userId')
   async findByAssignee(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Param('projectId') projectId: string,
     @Param('userId') userId: string,
     @Query('page') page = '1',
@@ -153,12 +154,12 @@ export class TasksController {
   }
 
   /**
-   * GET /organizations/:orgId/projects/:projectId/tasks/assignable-users
+   * GET /tasks/organizations/:orgId/projects/:projectId/tasks/assignable-users
    * Get all organization members who can be assigned to tasks.
    */
-  @Get('assignable-users')
+  @Get(':projectId/assignable-users')
   async getAssignableUsers(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Param('projectId') projectId: string,
     @CurrentUser() user: any,
   ) {
@@ -167,14 +168,14 @@ export class TasksController {
   }
 
   /**
-   * POST /organizations/:orgId/projects/:projectId/tasks/:id/assign
+   * POST /tasks/organizations/:orgId/projects/:projectId/tasks/:id/assign
    * Assign a task to a user (org ADMIN or higher).
    */
-  @Post(':id/assign')
+  @Post(':projectId/:id/assign')
   @UseGuards(OrgRoleGuard)
   @OrgRoles(OrganizationRole.ADMIN)
   async assignUser(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Param('projectId') projectId: string,
     @Param('id') taskId: string,
     @Body() dto: AssignTaskDto,
@@ -185,14 +186,14 @@ export class TasksController {
   }
 
   /**
-   * PATCH /organizations/:orgId/projects/:projectId/tasks/:id/unassign
+   * PATCH /tasks/organizations/:orgId/projects/:projectId/tasks/:id/unassign
    * Unassign a task from its current assignee (org ADMIN or higher).
    */
-  @Patch(':id/unassign')
+  @Patch(':projectId/:id/unassign')
   @UseGuards(OrgRoleGuard)
   @OrgRoles(OrganizationRole.ADMIN)
   async unassignUser(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Param('projectId') projectId: string,
     @Param('id') taskId: string,
     @CurrentUser() user: any,
@@ -202,14 +203,14 @@ export class TasksController {
   }
 
   /**
-   * PATCH /organizations/:orgId/projects/:projectId/tasks/:id/status
+   * PATCH /tasks/organizations/:orgId/projects/:projectId/tasks/:id/status
    * Update task status (org ADMIN or higher).
    */
-  @Patch(':id/status')
+  @Patch(':projectId/:id/status')
   @UseGuards(OrgRoleGuard)
   @OrgRoles(OrganizationRole.ADMIN)
   async updateStatus(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Param('projectId') projectId: string,
     @Param('id') taskId: string,
     @Body() dto: UpdateTaskStatusDto,
@@ -220,12 +221,12 @@ export class TasksController {
   }
 
   /**
-   * GET /organizations/:orgId/projects/:projectId/tasks/:id/status-history
+   * GET /tasks/organizations/:orgId/projects/:projectId/tasks/:id/status-history
    * Get full status change history for a task.
    */
-  @Get(':id/status-history')
+  @Get(':projectId/:id/status-history')
   async getStatusHistory(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Param('projectId') projectId: string,
     @Param('id') taskId: string,
     @Query('page') page = '1',
@@ -242,12 +243,12 @@ export class TasksController {
   }
 
   /**
-   * GET /organizations/:orgId/projects/:projectId/progress
+   * GET /tasks/organizations/:orgId/projects/:projectId/progress/project-stats
    * Get task progress statistics for the project.
    */
-  @Get('progress/project-stats')
+  @Get(':projectId/progress/project-stats')
   async getProjectProgress(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Param('projectId') projectId: string,
     @CurrentUser() user: any,
   ) {
@@ -256,12 +257,12 @@ export class TasksController {
   }
 
   /**
-   * GET /organizations/:orgId/projects/:projectId/progress/user/:userId
+   * GET /tasks/organizations/:orgId/projects/:projectId/progress/user/:userId
    * Get task progress statistics for a user within the project.
    */
-  @Get('progress/user/:userId')
+  @Get(':projectId/progress/user/:userId')
   async getUserProgress(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Param('projectId') projectId: string,
     @Param('userId') userId: string,
     @CurrentUser() user: any,

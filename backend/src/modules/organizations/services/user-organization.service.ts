@@ -9,7 +9,6 @@ import { OrganizationMembershipRepository } from '../../users/repositories/organ
 @Injectable()
 export class UserOrganizationService {
   constructor(
-    @InjectRepository(UserOrganizationMembership)
     private membershipRepository: OrganizationMembershipRepository,
     @InjectRepository(Organization)
     private organizationRepository: Repository<Organization>,

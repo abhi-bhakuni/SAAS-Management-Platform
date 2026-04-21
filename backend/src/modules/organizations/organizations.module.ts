@@ -28,7 +28,7 @@ import { EmailModule } from '../email/email.module';
     forwardRef(() => UsersModule),
     EmailModule,
   ],
-  controllers: [OrganizationsController, OrganizationInvitesController, OrganizationMembersController],
+  controllers: [OrganizationMembersController, OrganizationsController, OrganizationInvitesController],
   providers: [OrganizationsService, OrganizationInvitesService, UserOrganizationService],
   exports: [OrganizationsService, OrganizationInvitesService, UserOrganizationService],
 })

@@ -15,6 +15,7 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { SandboxModule } from './modules/sandbox/sandbox.module';
+import { ActivityModule } from './modules/activity/activity.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { SandboxModule } from './modules/sandbox/sandbox.module';
     AnalyticsModule,
     HealthModule,
     SandboxModule,
+    ActivityModule,
   ],
   controllers: [AppController],
   providers: [

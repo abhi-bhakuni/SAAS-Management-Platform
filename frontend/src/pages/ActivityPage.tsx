@@ -139,9 +139,6 @@ export function ActivityPage() {
                 sx={selectStyle}
               >
                 <MenuItem value="all">All Activities</MenuItem>
-                <MenuItem value="task_created">Creations</MenuItem>
-                <MenuItem value="task_moved">Transitions</MenuItem>
-                <MenuItem value="task_assigned">Assignments</MenuItem>
               </Select>
             </FormControl>
 
@@ -152,8 +149,6 @@ export function ActivityPage() {
                 sx={selectStyle}
               >
                 <MenuItem value="all">All Projects</MenuItem>
-                <MenuItem value="mock-proj-1">Website Redesign</MenuItem>
-                <MenuItem value="mock-proj-2">Mobile App</MenuItem>
               </Select>
             </FormControl>
 

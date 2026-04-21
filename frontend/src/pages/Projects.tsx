@@ -32,8 +32,14 @@ export function Projects() {
 
   useEffect(() => {
     const fetchProjects = async () => {
+      if (!user?.selectedOrgId) {
+        setProjects([]);
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        const result = await projectsApi.getProjects(user?.selectedOrgId);
+        const result = await projectsApi.getProjects();
         setProjects(result.data || result);
       } catch (error) {
         console.error("Failed to fetch projects", error);
@@ -56,7 +62,7 @@ export function Projects() {
   const handleCreateProject = async () => {
     if (!newProject.name || !user?.selectedOrgId) return;
     try {
-      const created = await projectsApi.createProject(user.selectedOrgId, newProject);
+      const created = await projectsApi.createProject(newProject);
       setProjects([created, ...projects]);
       setNewProject({ name: '', description: '' });
       handleCloseModal();

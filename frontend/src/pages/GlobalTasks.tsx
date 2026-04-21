@@ -23,9 +23,11 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export function GlobalTasks() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,13 +37,22 @@ export function GlobalTasks() {
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!user?.selectedOrgId) {
+        setTasks([]);
+        setProjects([]);
+        setLoading(false);
+        return;
+      }
+
       try {
         const [tasksRes, projectsRes] = await Promise.all([
           taskApi.getTasks(),
           projectsApi.getProjects()
         ]);
-        setTasks(tasksRes);
-        setProjects(Array.isArray(projectsRes) ? projectsRes : (projectsRes.data || []));
+        const tasksData = tasksRes as any;
+        const projectsData = projectsRes as any;
+        setTasks(Array.isArray(tasksData) ? tasksData : (tasksData.data || []));
+        setProjects(Array.isArray(projectsData) ? projectsData : (projectsData.data || []));
       } catch (error) {
         console.error('Failed to fetch tasks or projects:', error);
       } finally {
@@ -49,7 +60,7 @@ export function GlobalTasks() {
       }
     };
     fetchData();
-  }, []);
+  }, [user]);
 
   // Enrich tasks with project names
   const enrichedTasks = useMemo(() => {

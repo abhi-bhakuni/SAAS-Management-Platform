@@ -11,6 +11,8 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
+import { UsersService } from '../../users/services/users.service';
+import { OrganizationsService } from '../../organizations/services/organizations.service';
 import {
   LoginDto,
   SignupDto,
@@ -27,6 +29,8 @@ import { OrganizationInvitesService } from '../../organizations/services/organiz
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+    private readonly organizationsService: OrganizationsService,
     @Inject(forwardRef(() => OrganizationInvitesService))
     private readonly invitesService: OrganizationInvitesService,
   ) {}
@@ -57,10 +61,18 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async getCurrentUser(@CurrentUser() user: any) {
+    const fullUser = await this.usersService.findOne(user.id);
+    const organization = user.selectedOrgId
+      ? await this.organizationsService.findOne(user.selectedOrgId)
+      : null;
+
     return {
-      id: user.id,
-      email: user.email,
-      role: user.role,
+      id: fullUser.id,
+      email: fullUser.email,
+      role: fullUser.role,
+      firstName: fullUser.firstName,
+      lastName: fullUser.lastName,
+      name: organization?.name || null,
       selectedOrgId: user.selectedOrgId,
       orgRole: user.orgRole,
     };

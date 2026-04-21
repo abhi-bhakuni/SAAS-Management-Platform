@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   ForbiddenException,
+  Headers,
 } from '@nestjs/common';
 import { ProjectsService } from '../services/projects.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -19,18 +20,18 @@ import { CreateProjectDto, UpdateProjectDto } from '../dtos';
 import { OrganizationRole } from '../../users/entities/user-organization-membership.entity';
 import { UserRole } from '../../../common/enums';
 
-@Controller('organizations/:orgId/projects')
+@Controller('projects')
 @UseGuards(JwtAuthGuard, OrgMembershipGuard)
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   /**
-   * GET /organizations/:orgId/projects
-   * All org members may list projects.
+   * GET /projects
+   * All org members may list projects for the organization passed in headers.
    */
   @Get()
   async findAll(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @CurrentUser() user: any,
     @Query('page') page = '1',
     @Query('limit') limit = '20',
@@ -40,12 +41,12 @@ export class ProjectsController {
   }
 
   /**
-   * GET /organizations/:orgId/projects/:id
-   * All org members may view a single project.
+   * GET /projects/:id
+   * All org members may view a single project for the organization passed in headers.
    */
   @Get(':id')
   async findOne(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Param('id') id: string,
     @CurrentUser() user: any,
   ) {
@@ -54,14 +55,14 @@ export class ProjectsController {
   }
 
   /**
-   * POST /organizations/:orgId/projects
+   * POST /projects
    * Org ADMIN or OWNER only.
    */
   @Post()
   @UseGuards(OrgRoleGuard)
   @OrgRoles(OrganizationRole.ADMIN)
   async create(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Body() dto: CreateProjectDto,
     @CurrentUser() user: any,
   ) {
@@ -70,14 +71,14 @@ export class ProjectsController {
   }
 
   /**
-   * PUT /organizations/:orgId/projects/:id
+   * PUT /projects/:id
    * Org ADMIN or OWNER only.
    */
   @Put(':id')
   @UseGuards(OrgRoleGuard)
   @OrgRoles(OrganizationRole.ADMIN)
   async update(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Param('id') id: string,
     @Body() dto: UpdateProjectDto,
     @CurrentUser() user: any,
@@ -87,14 +88,14 @@ export class ProjectsController {
   }
 
   /**
-   * DELETE /organizations/:orgId/projects/:id
+   * DELETE /projects/organizations/:orgId/:id
    * Org ADMIN or OWNER only.
    */
   @Delete(':id')
   @UseGuards(OrgRoleGuard)
   @OrgRoles(OrganizationRole.ADMIN)
   async remove(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Param('id') id: string,
     @CurrentUser() user: any,
   ) {

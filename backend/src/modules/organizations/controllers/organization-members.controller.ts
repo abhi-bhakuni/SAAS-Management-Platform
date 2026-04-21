@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   ForbiddenException,
+  Headers,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { OrgMembershipGuard } from '../../auth/guards/org-membership.guard';
@@ -22,7 +23,7 @@ import {
 } from '../dtos';
 import { OrganizationRole } from '../../users/entities/user-organization-membership.entity';
 
-@Controller('organizations/:orgId/members')
+@Controller('organizations/members')
 @UseGuards(JwtAuthGuard, OrgMembershipGuard)
 export class OrganizationMembersController {
   constructor(private readonly userOrgService: UserOrganizationService) {}
@@ -32,7 +33,7 @@ export class OrganizationMembersController {
    */
   @Get()
   async getMembers(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @CurrentUser() user: any,
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '20',
@@ -55,7 +56,7 @@ export class OrganizationMembersController {
   @UseGuards(OrgRoleGuard)
   @OrgRoles(OrganizationRole.ADMIN)
   async addMember(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Body() addMemberDto: AddMemberDto,
     @CurrentUser() user: any,
   ): Promise<MemberResponseDto> {
@@ -80,7 +81,7 @@ export class OrganizationMembersController {
   @UseGuards(OrgRoleGuard)
   @OrgRoles(OrganizationRole.ADMIN)
   async updateMemberRole(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Param('userId') userId: string,
     @Body() updateRoleDto: UpdateMemberRoleDto,
     @CurrentUser() user: any,
@@ -116,7 +117,7 @@ export class OrganizationMembersController {
   @UseGuards(OrgRoleGuard)
   @OrgRoles(OrganizationRole.ADMIN)
   async removeMember(
-    @Param('orgId') orgId: string,
+    @Headers('x-org-id') orgId: string,
     @Param('userId') userId: string,
     @CurrentUser() user: any,
   ): Promise<{ success: boolean }> {

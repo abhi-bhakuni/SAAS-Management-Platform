@@ -62,7 +62,7 @@ export class UsersService {
       query.addSelect('user.password');
     }
 
-    query.leftJoinAndSelect('user.organization', 'organization');
+    query.leftJoinAndSelect('user.memberships', 'memberships');
     query.leftJoinAndSelect('user.subscriptions', 'subscriptions');
 
     const user = await query.getOne();
