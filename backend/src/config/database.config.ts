@@ -8,6 +8,7 @@ import { AuditLog } from '../common/entities/audit-log.entity';
 import { UserOrganizationMembership } from '../modules/users/entities/user-organization-membership.entity';
 import { Project } from '../modules/projects/entities/project.entity';
 import { Task } from '../modules/projects/entities/task.entity';
+import { TaskStatusHistory } from '../modules/projects/entities/task-status-history.entity';
 import { SubscriptionPlan } from '@/modules/subscriptions/entities/subscription-plan.entity';
 
 dotenv.config();
@@ -29,6 +30,7 @@ export const dataSourceOptions: DataSourceOptions = {
     UserOrganizationMembership,
     Project,
     Task,
+    TaskStatusHistory,
   ],
   migrations: ['dist/migrations/*.js'],
   synchronize: process.env.NODE_ENV === 'development',

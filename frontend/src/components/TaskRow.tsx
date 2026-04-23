@@ -84,19 +84,16 @@ export function TaskRow({
     >
       <TableCell component="th" scope="row" sx={{ maxWidth: { xs: 200, sm: 300, md: 400 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Tooltip title={task.title} placement="top-start" arrow enterDelay={700}>
-            <Typography 
-              variant="body2" 
-              fontWeight={600} 
-              color="text.primary"
-              sx={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
-            >
-              <Box component="span" sx={{ color: 'text.disabled', fontWeight: 500, mr: 1.5, fontSize: '0.75rem' }}>
-                {task.id}
-              </Box>
+          <Typography 
+            variant="body2" 
+            fontWeight={600} 
+            color="text.primary"
+            sx={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+          >
+            <Box component="span" sx={{ color: 'text.disabled', fontWeight: 500, mr: 1.5, fontSize: '0.75rem' }}>
               {task.title}
-            </Typography>
-          </Tooltip>
+            </Box>
+          </Typography>
         </Box>
       </TableCell>
       
@@ -122,10 +119,10 @@ export function TaskRow({
               color: 'text.primary'
             }}
           >
-            {task.assignee?.[0] || 'U'}
+            {task.assignedTo?.fullName?.[0] || 'U'}
           </Avatar>
           <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
-            {task.assignee || 'Unassigned'}
+            {task.assignedTo?.fullName || 'Unassigned'}
           </Typography>
         </Box>
       </TableCell>

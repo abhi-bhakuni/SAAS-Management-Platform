@@ -27,6 +27,9 @@ api.interceptors.request.use((config) => {
       if (user?.selectedOrgId) {
         config.headers['x-org-id'] = user.selectedOrgId;
       }
+      if (user?.id) {
+        config.headers['x-org-user-id'] = user.id;
+      }
     } catch {
       // ignore invalid user payload
     }
@@ -69,12 +72,12 @@ export const authApi = {
 };
 
 export const dashboardApi = {
-  getStats: async (orgId?: string) => {
+  getStats: async () => {
     if (isSandboxMode()) {
       const response = await api.get('/sandbox/dashboard');
       return response.data;
     }
-    const response = await api.get(`/organizations/${orgId}/dashboard-stats`);
+    const response = await api.get(`/organizations/dashboard-stats`);
     return response.data;
   }
 };
@@ -136,30 +139,36 @@ export const taskApi = {
   updateTaskStatus: async (projectId: string, taskId: string, status: string): Promise<Task> => {
     if (isSandboxMode()) throw new Error('Modifications restricted in Sandbox.');
     const response = await api.patch(
-      `/tasks/${projectId}/${taskId}/status`,
-      { status }
+      `/tasks/${taskId}/status`,
+      { status },
+      { params: { projectId } }
     );
     return response.data;
   },
   createTask: async (projectId: string, taskData: CreateTaskDto): Promise<Task> => {
     if (isSandboxMode()) throw new Error('Modifications restricted in Sandbox.');
     const response = await api.post(
-      `/tasks/${projectId}`,
-      taskData
+      `/tasks`,
+      taskData,
+      { params: { projectId } }
     );
     return response.data;
   },
   updateTask: async (projectId: string, taskId: string, taskData: UpdateTaskDto): Promise<Task> => {
     if (isSandboxMode()) throw new Error('Modifications restricted in Sandbox.');
     const response = await api.put(
-      `/tasks/${projectId}/${taskId}`,
-      taskData
+      `/tasks/${taskId}`,
+      taskData,
+      { params: { projectId } }
     );
     return response.data;
   },
   deleteTask: async (projectId: string, taskId: string): Promise<void> => {
     if (isSandboxMode()) throw new Error('Modifications restricted in Sandbox.');
-    await api.delete(`/tasks/${projectId}/${taskId}`);
+    await api.delete(
+      `/tasks/${taskId}`,
+      { params: { projectId } }
+    );
   },
   getAssignableUsers: async (projectId: string): Promise<any[]> => {
     if (isSandboxMode()) return [{ id: 'u1', name: 'Abhishek B.' }, { id: 'u2', name: 'Sarah M.' }];

@@ -38,7 +38,7 @@ export function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const result = await dashboardApi.getStats(user?.selectedOrgId ?? "");
+        const result = await dashboardApi.getStats();
         setData(result);
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
@@ -66,7 +66,7 @@ export function Dashboard() {
       setNewProject({ name: '', description: '' });
       handleCloseModal();
       // Refresh dashboard stats after creating a project
-      const result = await dashboardApi.getStats(user?.selectedOrgId ?? "");
+      const result = await dashboardApi.getStats();
       setData(result);
     } catch (error) {
       console.error('Failed to create project', error);

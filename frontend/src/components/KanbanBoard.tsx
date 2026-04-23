@@ -53,32 +53,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskMove, onT
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    if (!over) return;
-
-    const activeId = active.id;
-    const overId = over.id;
-
-    if (activeId === overId) return;
-
-    const activeTask = tasks.find(t => t.id === activeId);
-    if (!activeTask) return;
-
-    // Dropping over a column
-    const isOverAColumn = columns.some(col => col.id === overId);
-    if (isOverAColumn) {
-      const overColumn = columns.find(col => col.id === overId);
-      if (overColumn && activeTask.status !== overColumn.status) {
-        onTaskMove(activeId as string, overColumn.status);
-      }
-      return;
-    }
-
-    // Dropping over another task
-    const overTask = tasks.find(t => t.id === overId);
-    if (overTask && activeTask.status !== overTask.status) {
-      onTaskMove(activeId as string, overTask.status);
-    }
+    // No status updates during drag - only handle visual feedback
+    return;
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -90,6 +66,27 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskMove, onT
     const activeId = active.id;
     const overId = over.id;
 
+    const activeTask = tasks.find(t => t.id === activeId);
+    if (!activeTask) return;
+
+    // Check if dropped over a column
+    const isOverAColumn = columns.some(col => col.id === overId);
+    if (isOverAColumn) {
+      const overColumn = columns.find(col => col.id === overId);
+      if (overColumn && activeTask.status !== overColumn.status) {
+        onTaskMove(activeId as string, overColumn.status);
+      }
+      return;
+    }
+
+    // Check if dropped over another task
+    const overTask = tasks.find(t => t.id === overId);
+    if (overTask && activeTask.status !== overTask.status) {
+      onTaskMove(activeId as string, overTask.status);
+      return;
+    }
+
+    // Handle reordering within the same column
     if (activeId !== overId) {
       const activeIndex = tasks.findIndex(t => t.id === activeId);
       const overIndex = tasks.findIndex(t => t.id === overId);

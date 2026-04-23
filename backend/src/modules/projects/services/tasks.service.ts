@@ -396,7 +396,7 @@ export class TasksService {
       userId: m.userId,
       firstName: m.user.firstName,
       lastName: m.user.lastName,
-      name: `${m.user.firstName}${m.user.lastName ?? ""}`,
+      fullName: m.user.firstName + (m.user.lastName ? ' ' + m.user.lastName : ''),
       email: m.user.email,
       role: m.role,
     }));
@@ -637,7 +637,8 @@ export class TasksService {
             id: task.assignedTo.id,
             firstName: task.assignedTo.firstName,
             lastName: task.assignedTo.lastName,
-            email: task.assignedTo.email,
+            fullName: task.assignedTo.firstName + (task.assignedTo.lastName ? ' ' + task.assignedTo.lastName : ''),
+            email: task.assignedTo.email, 
           }
         : null,
       createdBy: task.createdBy
@@ -645,6 +646,7 @@ export class TasksService {
             id: task.createdBy.id,
             firstName: task.createdBy.firstName,
             lastName: task.createdBy.lastName,
+            fullName: task.createdBy.firstName + (task.createdBy.lastName ? ' ' + task.createdBy.lastName : ''),
             email: task.createdBy.email,
           }
         : null,

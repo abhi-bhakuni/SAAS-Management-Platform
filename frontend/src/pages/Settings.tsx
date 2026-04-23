@@ -64,7 +64,7 @@ export function Settings() {
       try {
         const [membersResponse, dashboardResponse] = await Promise.all([
           organizationApi.getMembers(1, 50),
-          dashboardApi.getStats(user.selectedOrgId),
+          dashboardApi.getStats(),
         ]);
         setMembers(membersResponse.data ?? []);
         setProjectCount(dashboardResponse?.stats?.totalProjects ?? null);

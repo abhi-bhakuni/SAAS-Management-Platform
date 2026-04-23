@@ -37,9 +37,6 @@ export class CreateTaskDto {
   priority?: TaskPriority;
 
   @IsOptional()
-  @Transform(({ value }) => {
-    return typeof value === 'string' ? `user_${value.replace(/-/g, '')}` : `user_${value}`;
-  })
   @IsUUID()
   assignedToUserId?: string;
 

@@ -128,10 +128,10 @@ export function GlobalTasks() {
                 sx={filterStyle}
               >
                 <MenuItem value="all">All Statuses</MenuItem>
-                <MenuItem value="Todo">Todo</MenuItem>
-                <MenuItem value="In Progress">In Progress</MenuItem>
-                <MenuItem value="Review">Review</MenuItem>
-                <MenuItem value="Done">Done</MenuItem>
+                <MenuItem value="todo">Todo</MenuItem>
+                <MenuItem value="in_progress">In Progress</MenuItem>
+                <MenuItem value="in_review">Review</MenuItem>
+                <MenuItem value="done">Done</MenuItem>
               </Select>
             </FormControl>
 
@@ -204,9 +204,6 @@ export function GlobalTasks() {
                       <TableCell sx={cellStyle}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                           <Typography variant="body2" fontWeight="700" color="#FFFFFF">
-                            <Box component="span" sx={{ color: 'text.disabled', fontWeight: 500, mr: 1, fontSize: '0.75rem' }}>
-                              {task.id}
-                            </Box>
                             {task.title}
                           </Typography>
                         </Box>
@@ -216,7 +213,7 @@ export function GlobalTasks() {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <LayersOutlinedIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
                           <Typography variant="body2" color="text.secondary" fontWeight="600" sx={{ fontSize: '0.8rem' }}>
-                            {task.name}
+                            {task.projectName}
                           </Typography>
                         </Box>
                       </TableCell>
@@ -224,7 +221,7 @@ export function GlobalTasks() {
                       <TableCell sx={cellStyle}>
                         <Box onClick={(e) => e.stopPropagation()}>
                           <TaskStatusSelect 
-                            value={(task.status || 'Todo') as TaskStatus}
+                            value={(task.status || 'todo') as TaskStatus}
                             onChange={() => {}} // Read-only for Global View currently
                           />
                         </Box>
@@ -233,10 +230,10 @@ export function GlobalTasks() {
                       <TableCell sx={cellStyle}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <Avatar sx={{ width: 24, height: 24, fontSize: '0.7rem', fontWeight: 700, backgroundColor: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                            {task.assignee?.[0] || task.assignedToUser?.firstName?.[0] || 'U'}
+                            {task.assignedTo?.fullName?.[0] || 'U'}
                           </Avatar>
                           <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
-                            {task.assignee || task.assignedToUser?.firstName || 'Unassigned'}
+                            {task.assignedTo?.fullName || 'Unassigned'}
                           </Typography>
                         </Box>
                       </TableCell>

@@ -160,6 +160,7 @@ export class ProjectsService {
             id: project.createdBy.id,
             firstName: project.createdBy.firstName,
             lastName: project.createdBy.lastName,
+            fullName: project.createdBy.firstName + (project.createdBy.lastName ? ' ' + project.createdBy.lastName : ''),
             email: project.createdBy.email,
           }
         : null,

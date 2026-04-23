@@ -32,6 +32,7 @@ import type { UserOption } from '../components/AssigneeSelect';
 import { TaskStatusSelect } from '../components/TaskStatusSelect';
 import { TaskRow } from '../components/TaskRow';
 import { Sidebar } from '../components/Sidebar';
+import { DarkDatePicker } from '../components/DarkDatePicker';
 
 import type { Task, TaskStatus, TaskPriority } from '../types/task';
 import { KanbanBoard } from '../components/KanbanBoard';
@@ -67,6 +68,7 @@ export function ProjectDetails() {
   const [selectedAssignee, setSelectedAssignee] = useState<UserOption>({ id: 'unassigned', name: 'Unassigned', avatar: '' });
   const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
   const [isActivityOpen, setIsActivityOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -87,7 +89,7 @@ export function ProjectDetails() {
         setTasks(Array.isArray(taskPayload) ? taskPayload : (taskPayload.data || []));
         
         const mappedUsers = Array.isArray(usersData) ? usersData.map((u: any) => ({
-          id: u.id,
+          id: u.userId,
           firstName: u.firstName || '',
           lastName: u.lastName || '',
           name: u.name || '',
@@ -175,11 +177,14 @@ export function ProjectDetails() {
           description: selectedTask.description,
           priority: selectedTask.priority,
           dueDate: selectedTask.dueDate,
+          status: selectedTask.status,
           // Assignee bindings can be injected here similarly when completely mapped in AssigneeSelect
         }
       );
       setTasks(tasks.map(t => t.id === selectedTask.id ? updatedTask : t));
       setIsDrawerOpen(false);
+      // Refresh the page after successful update
+      window.location.reload();
     } catch (error) {
       console.error("Failed to update task", error);
     }
@@ -187,12 +192,17 @@ export function ProjectDetails() {
 
   const handleDeleteTask = async () => {
     if (!user?.selectedOrgId || !projectId || !selectedTask) return;
-    if (!window.confirm("Are you sure you want to delete this task?")) return;
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteTask = async () => {
+    if (!user?.selectedOrgId || !projectId || !selectedTask) return;
     try {
       await taskApi.deleteTask(projectId, selectedTask.id);
       setTasks(tasks.filter(t => t.id !== selectedTask.id));
       setIsDrawerOpen(false);
       setSelectedTask(null);
+      setIsDeleteModalOpen(false);
     } catch (error) {
       console.error("Failed to delete task", error);
     }
@@ -468,7 +478,7 @@ export function ProjectDetails() {
                 {selectedTask && (
                   <TaskStatusSelect 
                     value={selectedTask.status}
-                    onChange={(newStatus) => updateTaskStatus(selectedTask.id, newStatus)}
+                    onChange={(newStatus) => setSelectedTask({ ...selectedTask, status: newStatus })}
                   />
                 )}
               </Box>
@@ -479,7 +489,7 @@ export function ProjectDetails() {
                   <AssigneeSelect 
                     value={{
                       id: selectedTask.id || 'unassigned',
-                      name: selectedTask.assignee || 'Unassigned',
+                      name: selectedTask.assignedTo?.fullName || 'Unassigned',
                       avatar: ''
                     }}
                     options={assignableUsers}
@@ -493,7 +503,7 @@ export function ProjectDetails() {
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <Typography variant="body2" color="text.disabled" sx={{ width: 120, fontWeight: 600 }}>Priority</Typography>
                 {selectedTask && (
-                  <FormControl size="small" sx={{ width: 120 }}>
+                  <FormControl size="small">
                     <Select
                       value={selectedTask.priority.toLowerCase()}
                       onChange={(e) => setSelectedTask({ ...selectedTask, priority: e.target.value as TaskPriority })}
@@ -647,17 +657,19 @@ export function ProjectDetails() {
 
           {/* Properties Grid */}
           <Box sx={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(2, 1fr)', 
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
             gap: 3,
             backgroundColor: '#27272A',
             p: 3,
             borderRadius: '10px',
             border: '1px solid',
-            borderColor: 'rgba(255, 255, 255, 0.05)'
+            borderColor: 'rgba(255, 255, 255, 0.05)',
+            minWidth: 0,
+            overflow: 'hidden',
           }}>
             {/* Status Field */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
               <Typography variant="caption" color="text.disabled" fontWeight="600" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Status
               </Typography>
@@ -668,7 +680,7 @@ export function ProjectDetails() {
             </Box>
 
             {/* Priority Field */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
               <Typography variant="caption" color="text.disabled" fontWeight="600" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Priority
               </Typography>
@@ -698,7 +710,7 @@ export function ProjectDetails() {
             </Box>
 
             {/* Assignee Field */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
               <Typography variant="caption" color="text.disabled" fontWeight="600" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Assignee
               </Typography>
@@ -710,28 +722,18 @@ export function ProjectDetails() {
             </Box>
 
             {/* Due Date Field */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
               <Typography variant="caption" color="text.disabled" fontWeight="600" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Due Date
               </Typography>
-              <TextField
-                type="date"
-                size="small"
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-                value={newTask.dueDate}
-                onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
-                sx={{ 
-                  '& .MuiOutlinedInput-root': { 
-                    borderRadius: '6px', 
-                    fontSize: '0.85rem',
-                    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.1)' }
-                  } 
-                }}
+              <DarkDatePicker
+                value={newTask.dueDate || ''}
+                onChange={(val) => setNewTask({ ...newTask, dueDate: val })}
+                disablePast
               />
             </Box>
           </Box>
+
         </DialogContent>
 
         <DialogActions sx={{ px: 4, pb: 4, pt: 0, justifyContent: 'flex-end', gap: 2 }}>
@@ -752,7 +754,7 @@ export function ProjectDetails() {
             onClick={handleCreateTask} 
             variant="contained"
             disableElevation
-            disabled={!newTask.title || !newTask.description || !newTask.dueDate || !selectedAssignee.id}
+            disabled={!newTask.title || !newTask.description || !newTask.dueDate || selectedAssignee.id === 'unassigned'}
             sx={{ 
               borderRadius: '6px', 
               textTransform: 'none', 
@@ -767,6 +769,80 @@ export function ProjectDetails() {
             }}
           >
             Create Task
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog
+        open={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        PaperProps={{
+          elevation: 0,
+          sx: {
+            borderRadius: '12px',
+            width: '100%',
+            maxWidth: 400,
+            backgroundColor: '#18181B',
+            border: '1px solid',
+            borderColor: '#2A2A2E',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+          }
+        }}
+      >
+        <DialogContent sx={{ p: 4, textAlign: 'center' }}>
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ 
+              p: 2, 
+              borderRadius: '12px', 
+              backgroundColor: 'rgba(239, 68, 68, 0.1)', 
+              border: '1px solid rgba(239, 68, 68, 0.2)', 
+              display: 'inline-flex',
+              mb: 3
+            }}>
+              <ReceiptLongOutlinedIcon sx={{ fontSize: 32, color: '#ef4444' }} />
+            </Box>
+            <Typography variant="h6" fontWeight="700" color="text.primary" gutterBottom>
+              Delete Task
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+              Are you sure you want to delete "{selectedTask?.title}"? This action cannot be undone.
+            </Typography>
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 4, pb: 4, pt: 0, justifyContent: 'center', gap: 2 }}>
+          <Button 
+            onClick={() => setIsDeleteModalOpen(false)} 
+            sx={{ 
+              color: 'text.secondary', 
+              textTransform: 'none', 
+              fontWeight: 600, 
+              borderRadius: '6px',
+              fontSize: '0.85rem',
+              px: 3,
+              '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)', color: '#FFFFFF' }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={confirmDeleteTask} 
+            variant="contained"
+            disableElevation
+            sx={{ 
+              borderRadius: '6px', 
+              textTransform: 'none', 
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              px: 3,
+              py: 0.8,
+              backgroundColor: '#ef4444',
+              color: '#FFFFFF',
+              '&:hover': { backgroundColor: '#dc2626' }
+            }}
+          >
+            Delete Task
           </Button>
         </DialogActions>
       </Dialog>
@@ -786,9 +862,9 @@ export function ProjectDetails() {
           }
         }}
       >
-        <ActivityFeed 
-          orgId={user?.selectedOrgId || 'demo-org'} 
-          projectId={projectId || 'demo-project'} 
+        <ActivityFeed
+          orgId={user?.selectedOrgId || 'demo-org'}
+          projectId={projectId || 'demo-project'}
         />
       </Drawer>
     </Box>

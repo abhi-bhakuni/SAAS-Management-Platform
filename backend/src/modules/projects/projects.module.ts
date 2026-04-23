@@ -14,7 +14,7 @@ import { WebSocketModule } from '../websocket/websocket.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Project, Task, TaskStatusHistory, Organization, UserOrganizationMembership, TasksGateway]),
+    TypeOrmModule.forFeature([Project, Task, TaskStatusHistory, Organization, UserOrganizationMembership]),
     WebSocketModule
   ],
   controllers: [ProjectsController, TasksController],

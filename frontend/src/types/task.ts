@@ -7,6 +7,7 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
+  fullName: string;
 }
 
 export interface Task {
@@ -17,9 +18,9 @@ export interface Task {
   priority: TaskPriority;
   projectId: string;
   assignedToUserId?: string;
-  assignedToUser?: User;
+  assignedTo?: User;
   createdByUserId: string;
-  createdByUser: User;
+  createdBy: User;
   dueDate?: string;
   metadata?: Record<string, any>;
   createdAt: string;
