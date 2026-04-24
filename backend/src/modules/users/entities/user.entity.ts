@@ -21,58 +21,61 @@ import { UserOrganizationMembership } from './user-organization-membership.entit
 @Index(['email'])
 export class User {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ type: 'varchar', length: 255 })
-  email: string;
+  email!: string;
 
   @Column({ type: 'varchar', length: 255 })
-  firstName: string;
+  firstName!: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   lastName?: string;
+
+  @Column({ type: 'text', nullable: true })
+  bio?: string;
 
   @Column({ type: 'varchar', length: 255, select: false })
   password?: string;
 
   @Column({ type: 'varchar', length: 50, default: UserRole.MEMBER })
-  role: UserRole;
+  role!: UserRole;
 
   @Column({ type: 'boolean', default: false })
-  emailVerified: boolean;
+  emailVerified!: boolean;
 
   @Column({ type: 'varchar', nullable: true, select: false })
   verificationToken?: string;
 
   @Column({ type: 'boolean', default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @Column({ type: 'varchar', nullable: true })
-  lastLoginAt: string;
+  lastLoginAt!: string;
 
   @Column({ type: 'integer', default: 0 })
-  loginAttempts: number;
+  loginAttempts!: number;
 
   @Column({ type: 'varchar', nullable: true })
   lockUntil?: string;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @OneToMany(
     () => UserOrganizationMembership,
     (membership) => membership.user,
   )
-  memberships: UserOrganizationMembership[];
+  memberships!: UserOrganizationMembership[];
 
   @OneToMany(() => Subscription, (sub) => sub.user)
-  subscriptions: Subscription[];
+  subscriptions!: Subscription[];
 
   @OneToMany(() => AuditLog, (log) => log.user)
-  auditLogs: AuditLog[];
+  auditLogs!: AuditLog[];
 
   @BeforeInsert()
   @BeforeUpdate()
@@ -87,7 +90,7 @@ export class User {
   }
 
   getFullName(): string {
-    return `${this.firstName} ${this.lastName}`;
+    return `${this.firstName}${this.lastName ? ' ' + this.lastName : ''}`;
   }
 
   isAccountLocked(): boolean {

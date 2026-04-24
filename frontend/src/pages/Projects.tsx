@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { projectsApi } from '../services/api';
+import { useToast } from '../context/ToastContext';
+import { billingApi, projectsApi } from '../services/api';
 import { 
   Box, 
   Typography, 
@@ -25,7 +26,9 @@ import { Sidebar } from '../components/Sidebar';
 export function Projects() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [projects, setProjects] = useState<any[]>([]);
+  const [subscription, setSubscription] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProject, setNewProject] = useState({ name: '', description: '' });
@@ -43,15 +46,39 @@ export function Projects() {
         setProjects(result.data || result);
       } catch (error) {
         console.error("Failed to fetch projects", error);
+        showToast('Failed to load projects. Please refresh.', 'error');
       }
       setIsLoading(false);
     };
     fetchProjects();
   }, [user?.selectedOrgId, user]);
 
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      try {
+        const billingResponse = await billingApi.getMySubscription();
+        setSubscription(billingResponse.subscription ?? null);
+      } catch (error) {
+        console.error('Failed to load subscription data', error);
+      }
+    };
+
+    if (user?.selectedOrgId) {
+      fetchSubscription();
+    }
+  }, [user?.selectedOrgId, user]);
+
+  const currentPlan = subscription?.subscriptionPlan;
+  const projectLimit = Number(currentPlan?.limits?.projects ?? 5);
+  const isProjectLimitReached = projects.length >= projectLimit;
+
   const handleOpenModal = () => {
     if (!user) {
       navigate('/login');
+      return;
+    }
+    if (isProjectLimitReached) {
+      showToast(`Free plan allows only ${projectLimit} projects. Upgrade to add more.`, 'warning');
       return;
     }
     setIsModalOpen(true);
@@ -62,13 +89,21 @@ export function Projects() {
   const handleCreateProject = async () => {
     if (!newProject.name || !user?.selectedOrgId) return;
     try {
+      if (isProjectLimitReached) {
+        showToast(`Free plan allows only ${projectLimit} projects. Upgrade to add more.`, 'warning');
+        return;
+      }
+
       const created = await projectsApi.createProject(newProject);
       setProjects([created, ...projects]);
       setNewProject({ name: '', description: '' });
       handleCloseModal();
     } catch (error) {
       console.error("Failed to create project", error);
+      showToast('Project creation failed. Please try again.', 'error');
+      return;
     }
+    showToast('Project created successfully.', 'success');
   };
 
   return (
@@ -104,6 +139,7 @@ export function Projects() {
             disableElevation
             startIcon={<AddIcon />}
             onClick={handleOpenModal}
+            disabled={isProjectLimitReached}
             sx={{ 
               borderRadius: '6px',
               textTransform: 'none',

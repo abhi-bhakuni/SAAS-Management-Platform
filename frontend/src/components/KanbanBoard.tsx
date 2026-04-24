@@ -52,7 +52,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskMove, onT
     setActiveTask(task || null);
   };
 
-  const handleDragOver = (event: DragOverEvent) => {
+  const handleDragOver = () => {
     // No status updates during drag - only handle visual feedback
     return;
   };

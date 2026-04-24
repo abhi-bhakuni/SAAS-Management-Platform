@@ -68,6 +68,11 @@ export const authApi = {
     if (isSandboxMode()) return { id: 'guest', name: 'Guest User', role: 'GUEST' };
     const response = await api.get('/auth/me');
     return response.data;
+  },
+  updateProfile: async (userId: string, data: { firstName?: string; lastName?: string; bio?: string }) => {
+    if (isSandboxMode()) throw new Error('Modifications restricted in Sandbox.');
+    const response = await api.put(`/users/${userId}`, data);
+    return response.data;
   }
 };
 
@@ -121,6 +126,11 @@ export const projectsApi = {
   createProject: async (data: any) => {
     if (isSandboxMode()) throw new Error('Cannot create projects in Sandbox mode.');
     const response = await api.post(`/projects`, data);
+    return response.data;
+  },
+  deleteProject: async (projectId: string) => {
+    if (isSandboxMode()) throw new Error('Cannot delete projects in Sandbox mode.');
+    const response = await api.delete(`/projects/${projectId}`);
     return response.data;
   }
 };

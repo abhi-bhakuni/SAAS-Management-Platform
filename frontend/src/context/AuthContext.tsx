@@ -18,6 +18,7 @@ interface User {
   role: string;
   selectedOrgId?: string;
   selectedOrgRole?: string;
+  bio?: string;
 }
 
 interface AuthContextType {
@@ -28,6 +29,7 @@ interface AuthContextType {
   login: (credentials: any) => Promise<void>;
   register: (data: any) => Promise<void>;
   logout: () => void;
+  updateUser: (updated: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,8 +44,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (token) {
         try {
           const userData = await authApi.getCurrentUser();
-          setUser(userData);
-          localStorage.setItem('user', JSON.stringify(userData));
+          const storedUserJson = localStorage.getItem('user');
+          const storedUser = storedUserJson ? JSON.parse(storedUserJson) : null;
+          const mergedUser = storedUser?.bio ? { ...userData, bio: storedUser.bio } : userData;
+          setUser(mergedUser);
+          localStorage.setItem('user', JSON.stringify(mergedUser));
         } catch (error) {
           console.error("Failed to fetch user context", error);
           logout();
@@ -66,6 +71,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(access_token);
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
+  };
+
+  const updateUser = (updated: Partial<User>) => {
+    setUser((currentUser) => {
+      if (!currentUser) return currentUser;
+      const nextUser = { ...currentUser, ...updated };
+      localStorage.setItem('user', JSON.stringify(nextUser));
+      return nextUser;
+    });
   };
 
   const register = async (signUpData: any) => {
@@ -92,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated: !!token, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isAuthenticated: !!token, isLoading, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

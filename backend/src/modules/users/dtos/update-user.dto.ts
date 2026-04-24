@@ -26,6 +26,11 @@ export class UpdateUserDto {
   lastName?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  bio?: string;
+
+  @IsOptional()
   @IsEnum(UserRole)
   role?: UserRole;
 

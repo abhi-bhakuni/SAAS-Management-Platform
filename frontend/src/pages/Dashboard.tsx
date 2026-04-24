@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../context/ToastContext';
 import { 
   Box, 
   Typography, 
@@ -18,7 +19,7 @@ import {
   TextField
 } from '@mui/material';
 import { Sidebar } from '../components/Sidebar';
-import { dashboardApi, projectsApi } from '../services/api';
+import { billingApi, dashboardApi, projectsApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import TaskAltIcon from '@mui/icons-material/TaskAlt';
@@ -30,7 +31,9 @@ import HistoryIcon from '@mui/icons-material/History';
 export function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [data, setData] = useState<any>(null);
+  const [subscription, setSubscription] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProject, setNewProject] = useState({ name: '', description: '' });
@@ -42,6 +45,7 @@ export function Dashboard() {
         setData(result);
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
+        showToast('Failed to load dashboard. Please refresh.', 'error');
       } finally {
         setLoading(false);
       }
@@ -49,9 +53,28 @@ export function Dashboard() {
     fetchData();
   }, [user]);
 
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      try {
+        const billingResponse = await billingApi.getMySubscription();
+        setSubscription(billingResponse.subscription ?? null);
+      } catch (error) {
+        console.error('Failed to load subscription data', error);
+      }
+    };
+
+    if (user?.selectedOrgId) {
+      fetchSubscription();
+    }
+  }, [user?.selectedOrgId, user]);
+
   const handleOpenModal = () => {
     if (!user) {
       navigate('/login');
+      return;
+    }
+    if (isProjectLimitReached) {
+      showToast(`Free plan allows only ${projectLimit} projects. Upgrade to add more.`, 'warning');
       return;
     }
     setIsModalOpen(true);
@@ -59,8 +82,17 @@ export function Dashboard() {
 
   const handleCloseModal = () => setIsModalOpen(false);
 
+  const currentPlan = subscription?.subscriptionPlan;
+  const projectLimit = Number(currentPlan?.limits?.projects ?? 5);
+  const currentProjectCount = data?.stats?.totalProjects ?? 0;
+  const isProjectLimitReached = currentProjectCount >= projectLimit;
+
   const handleCreateProject = async () => {
     if (!newProject.name || !user?.selectedOrgId) return;
+    if (isProjectLimitReached) {
+      showToast(`Free plan allows only ${projectLimit} projects. Upgrade to add more.`, 'warning');
+      return;
+    }
     try {
       await projectsApi.createProject(newProject);
       setNewProject({ name: '', description: '' });
@@ -70,7 +102,10 @@ export function Dashboard() {
       setData(result);
     } catch (error) {
       console.error('Failed to create project', error);
+      showToast('Project creation failed. Please try again.', 'error');
+      return;
     }
+    showToast('Project created successfully.', 'success');
   };
 
   const stats = data ? [
@@ -117,6 +152,7 @@ export function Dashboard() {
             variant="contained" 
             startIcon={<AddIcon />}
             onClick={handleOpenModal}
+            disabled={isProjectLimitReached}
             sx={{ 
               borderRadius: '8px', 
               backgroundColor: '#FFFFFF', 

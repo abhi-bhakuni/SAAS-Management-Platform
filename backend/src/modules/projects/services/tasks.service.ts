@@ -13,6 +13,7 @@ import { UserOrganizationMembership } from '../../users/entities/user-organizati
 import { TasksGateway } from '../../websocket/tasks.gateway';
 import { CreateTaskDto, UpdateTaskDto, UpdateTaskStatusDto } from '../dtos';
 import { TaskStatus } from '../../../common/enums';
+import { ActivityService } from '../../activity/services/activity.service';
 
 @Injectable()
 export class TasksService {
@@ -27,6 +28,7 @@ export class TasksService {
     @InjectRepository(UserOrganizationMembership)
     private readonly membershipRepository: Repository<UserOrganizationMembership>,
     private readonly tasksGateway: TasksGateway,
+    private readonly activityService: ActivityService,
   ) {}
 
   /**
@@ -74,10 +76,12 @@ export class TasksService {
 
     return {
       data: tasks.map((t) => this.toResponse(t)),
-      total,
-      page,
-      limit,
-      pages: Math.ceil(total / limit),
+      _metadata: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit),
+      }
     };
   }
 
@@ -142,6 +146,13 @@ export class TasksService {
       createdByUserId,
       'User', // TODO: Get actual user name
     );
+
+    await this.activityService.createActivity(createdByUserId, {
+      action: 'CREATE',
+      entityType: 'Task',
+      entityId: saved.id,
+      description: { name: saved.title },
+    });
 
     // Re-fetch with relations so the response is complete
     return this.findOne(projectId, saved.id);
@@ -463,6 +474,13 @@ export class TasksService {
       userId,
       'User', // TODO: Get actual user name
     );
+
+    await this.activityService.createActivity(userId, {
+      action: 'UPDATE',
+      entityType: 'TaskStatus',
+      entityId: taskId,
+      description: { fromStatus: oldStatus, toStatus: dto.status, title: task.title },
+    });
 
     return this.findOne(projectId, taskId);
   }

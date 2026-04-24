@@ -35,11 +35,33 @@ const getActivityIcon = (type: ActivityEvent['type']) => {
   }
 };
 
+import { activityApi } from '../services/api';
+
 export const ActivityFeed: React.FC<ActivityFeedProps> = ({ orgId, projectId }) => {
   const [activities, setActivities] = useState<ActivityEvent[]>([]);
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
+    // Fetch historical activities
+    const fetchActivities = async () => {
+      try {
+        const data = await activityApi.getActivity();
+        const pastActivities = data.map((a: any) => ({
+          id: a.id,
+          type: a.type as ActivityEvent['type'],
+          message: `${a.description} "${a.targetName}" ${a.detail !== '{}' ? `(${a.detail})` : ''}`.trim(),
+          userName: a.user,
+          projectId: projectId,
+          orgId: orgId,
+          timestamp: new Date(a.timestamp),
+        }));
+        setActivities(pastActivities);
+      } catch (err) {
+        console.error("Failed to load past activities:", err);
+      }
+    };
+    fetchActivities();
+
     // Connect to socket when component mounts
     socketService.connect(orgId, projectId, 'current-user-id');
 

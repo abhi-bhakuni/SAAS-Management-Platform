@@ -9,5 +9,6 @@ import { User } from '@modules/users/entities/user.entity';
   imports: [TypeOrmModule.forFeature([AuditLog, User])],
   controllers: [ActivityController],
   providers: [ActivityService],
+  exports: [ActivityService],
 })
 export class ActivityModule {}

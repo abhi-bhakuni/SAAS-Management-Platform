@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type SyntheticEvent } from 'react';
 import { 
   Box, 
   Typography, 
@@ -20,7 +20,8 @@ import {
 } from '@mui/material';
 import { Sidebar } from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
-import { organizationApi, dashboardApi, billingApi } from '../services/api';
+import { useToast } from '../context/ToastContext';
+import { organizationApi, dashboardApi, billingApi, authApi } from '../services/api';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
 import CreditCardOutlinedIcon from '@mui/icons-material/CreditCardOutlined';
@@ -40,15 +41,19 @@ type Member = {
 };
 
 export function Settings() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState(0);
+  const [fullName, setFullName] = useState('');
+  const [bio, setBio] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
   const [isMembersLoading, setIsMembersLoading] = useState(false);
   const [projectCount, setProjectCount] = useState<number | null>(null);
   const [subscription, setSubscription] = useState<any | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<any>(null);
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
 
@@ -101,6 +106,51 @@ export function Settings() {
 
     fetchBillingData();
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!user) {
+      setFullName('');
+      setBio('');
+      return;
+    }
+
+    setFullName(`${user.firstName ?? ''} ${user.lastName ?? ''}`.trim());
+    setBio(user.bio ?? '');
+  }, [user]);
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+
+    setIsSaving(true);
+    try {
+      const trimmedName = fullName.trim();
+      const nameParts = trimmedName.split(' ').filter(Boolean);
+      const firstName = nameParts.shift() ?? '';
+      const lastName = nameParts.join(' ');
+
+      const payload: { firstName: string; lastName?: string; bio?: string } = {
+        firstName,
+        bio,
+      };
+
+      if (lastName) {
+        payload.lastName = lastName;
+      }
+
+      const updatedUser = await authApi.updateProfile(user.id, payload);
+      updateUser({
+        firstName: updatedUser.firstName ?? firstName,
+        lastName: updatedUser.lastName ?? lastName,
+        bio: updatedUser.bio ?? bio,
+      });
+      showToast('Profile updated successfully.', 'success');
+    } catch (error: unknown) {
+      console.error('Failed to save profile information', error);
+      showToast('Failed to save profile changes. Please try again.', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const currentPlan = subscription?.subscriptionPlan;
   const currentPlanName = currentPlan?.name ?? 'Free Tier';
@@ -200,23 +250,43 @@ export function Settings() {
                   <TextField
                     fullWidth
                     label="Full Name"
-                    defaultValue={`${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim()}
+                    value={fullName}
+                    onChange={(event) => setFullName(event.target.value)}
                     variant="outlined"
                     sx={inputStyle}
                   />
                   <TextField
                     fullWidth
                     label="Email Address"
-                    defaultValue={user?.email ?? ''}
+                    value={user?.email ?? ''}
                     variant="outlined"
                     sx={inputStyle}
+                    InputProps={{ readOnly: true }}
                   />
                 </Box>
                 
-                <TextField fullWidth multiline rows={3} label="Bio" placeholder="Tell us about yourself..." variant="outlined" sx={inputStyle} />
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={3}
+                  label="Bio"
+                  placeholder="Tell us about yourself..."
+                  value={bio}
+                  onChange={(event) => setBio(event.target.value)}
+                  variant="outlined"
+                  sx={inputStyle}
+                />
 
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-                  <Button variant="contained" disableElevation sx={saveButtonStyle}>Save Changes</Button>
+                  <Button
+                    variant="contained"
+                    disableElevation
+                    sx={saveButtonStyle}
+                    onClick={handleSaveProfile}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? 'Saving…' : 'Save Changes'}
+                  </Button>
                 </Box>
               </Box>
             )}

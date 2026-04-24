@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useToast } from '../context/ToastContext';
 import { 
   Box, 
   Typography, 
@@ -28,6 +29,7 @@ import { useAuth } from '../context/AuthContext';
 export function GlobalTasks() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [tasks, setTasks] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +57,7 @@ export function GlobalTasks() {
         setProjects(Array.isArray(projectsData) ? projectsData : (projectsData.data || []));
       } catch (error) {
         console.error('Failed to fetch tasks or projects:', error);
+        showToast('Failed to load tasks. Please refresh the page.', 'error');
       } finally {
         setLoading(false);
       }
@@ -73,14 +76,38 @@ export function GlobalTasks() {
     });
   }, [tasks, projects]);
 
+  const assigneeOptions = useMemo(() => {
+    const names = new Set<string>();
+    tasks.forEach(task => {
+      const fullName = task.assignedTo?.fullName?.trim();
+      if (fullName) {
+        names.add(fullName);
+      } else {
+        names.add('Unassigned');
+      }
+    });
+    return ['All Assignees', ...Array.from(names).sort()];
+  }, [tasks]);
+
+  const handleStatusChange = async (taskId: string, projectId: string, newStatus: TaskStatus) => {
+    try {
+      const updatedTask = await taskApi.updateTaskStatus(projectId, taskId, newStatus);
+      setTasks(prevTasks => prevTasks.map(task => task.id === taskId ? { ...task, ...updatedTask } : task));
+    } catch (error) {
+      console.error('Failed to update task status:', error);
+      showToast('Could not update task status. Please try again.', 'error');
+      return;
+    }
+    showToast('Task status updated successfully.', 'success');
+  };
+
   // Filter logic
   const filteredTasks = useMemo(() => {
     return enrichedTasks.filter(task => {
       const matchStatus = statusFilter === 'all' || task.status === statusFilter;
       const matchProject = projectFilter === 'all' || task.projectId === projectFilter;
-      const matchAssignee = assigneeFilter === 'all' || 
-                           task.assignedToUser?.firstName === assigneeFilter || 
-                           task.assignee === assigneeFilter;
+      const assigneeName = task.assignedTo?.fullName?.trim() || 'Unassigned';
+      const matchAssignee = assigneeFilter === 'all' || assigneeFilter === 'All Assignees' || assigneeName === assigneeFilter;
       return matchStatus && matchProject && matchAssignee;
     });
   }, [enrichedTasks, statusFilter, projectFilter, assigneeFilter]);
@@ -141,10 +168,11 @@ export function GlobalTasks() {
                 onChange={(e) => setAssigneeFilter(e.target.value)}
                 sx={filterStyle}
               >
-                <MenuItem value="all">Every Assignee</MenuItem>
-                <MenuItem value="Abhishek B.">Abhishek B.</MenuItem>
-                <MenuItem value="Sarah M.">Sarah M.</MenuItem>
-                <MenuItem value="David C.">David C.</MenuItem>
+                {assigneeOptions.map(name => (
+                  <MenuItem key={name} value={name === 'All Assignees' ? 'all' : name}>
+                    {name}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
 
@@ -195,7 +223,7 @@ export function GlobalTasks() {
                     <TableRow 
                       key={task.id} 
                       hover
-                      onClick={() => navigate(`/projects/${task.id}`)}
+                      onClick={() => navigate(`/projects/${task.projectId}`)}
                       sx={{ 
                         cursor: 'pointer',
                         '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.02) !important' }
@@ -222,7 +250,7 @@ export function GlobalTasks() {
                         <Box onClick={(e) => e.stopPropagation()}>
                           <TaskStatusSelect 
                             value={(task.status || 'todo') as TaskStatus}
-                            onChange={() => {}} // Read-only for Global View currently
+                            onChange={(newStatus) => handleStatusChange(task.id, task.projectId, newStatus)}
                           />
                         </Box>
                       </TableCell>

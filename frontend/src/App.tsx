@@ -8,6 +8,7 @@ import { ActivityPage } from './pages/ActivityPage';
 import { Settings } from './pages/Settings';
 import { Auth } from './pages/Auth';
 import { AuthProvider } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 // Custom modern dark theme for professional SaaS look
@@ -91,8 +92,9 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
-        <Router>
-          <Routes>
+        <ToastProvider>
+          <Router>
+            <Routes>
             <Route path="/login" element={<Auth />} />
             
             {/* New Saas Routing Structure */}
@@ -112,6 +114,7 @@ function App() {
             </Route>
           </Routes>
         </Router>
+      </ToastProvider>
       </AuthProvider>
     </ThemeProvider>
   );

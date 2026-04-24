@@ -40,7 +40,7 @@ export function ActivityPage() {
   const [loading, setLoading] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [typeFilter, setTypeFilter] = useState('all');
-  const [projectFilter, setProjectFilter] = useState('all');
+  const [projectFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
 
@@ -138,17 +138,9 @@ export function ActivityPage() {
                 onChange={(e) => setTypeFilter(e.target.value)}
                 sx={selectStyle}
               >
-                <MenuItem value="all">All Activities</MenuItem>
-              </Select>
-            </FormControl>
-
-            <FormControl size="small" sx={{ minWidth: 160 }}>
-              <Select
-                value={projectFilter}
-                onChange={(e) => setProjectFilter(e.target.value)}
-                sx={selectStyle}
-              >
-                <MenuItem value="all">All Projects</MenuItem>
+                <MenuItem value="all">Select Type</MenuItem>
+                <MenuItem value="project">Project</MenuItem>
+                <MenuItem value="task">Task</MenuItem>
               </Select>
             </FormControl>
 
@@ -246,7 +238,7 @@ export function ActivityPage() {
                                 <Box component="span" sx={{ fontWeight: 800, color: '#FFFFFF', mr: 1 }}>{activity.user}</Box>
                                 {activity.description} 
                                 <Box 
-                                  onClick={(e) => { e.stopPropagation(); navigate(`/projects/${activity.projectId}`); }}
+                                  onClick={(e) => { e.stopPropagation(); navigate(`/${activity.targetName.toLowerCase()}s/${activity.targetId}`); }}
                                   component="span" 
                                   sx={{ 
                                     mx: 1, 
@@ -291,7 +283,7 @@ export function ActivityPage() {
                                 >
                                   <LayersOutlinedIcon sx={{ fontSize: 12, color: 'text.disabled' }} />
                                   <Typography variant="caption" component="span" sx={{ fontWeight: 700, color: 'text.disabled', fontSize: '0.7rem', transition: 'color 0.2s' }}>
-                                    {activity.project}
+                                    {activity.name}
                                   </Typography>
                                 </Box>
                               </Box>
@@ -389,14 +381,14 @@ export function ActivityPage() {
               <Box>
                 <Typography variant="caption" sx={{ color: 'text.disabled', fontWeight: 800, textTransform: 'uppercase', mb: 1, display: 'block' }}>Target</Typography>
                 <Typography variant="h6" fontWeight="800" color={selectedActivity.color}>{selectedActivity.targetName}</Typography>
-                <Typography variant="caption" color="text.disabled">ID: {selectedActivity.targetId || 'N/A'}</Typography>
+                <Typography variant="caption" color="text.disabled">ID: {selectedActivity.targetId || ''}</Typography>
               </Box>
 
               <Box>
-                <Typography variant="caption" sx={{ color: 'text.disabled', fontWeight: 800, textTransform: 'uppercase', mb: 1, display: 'block' }}>Project</Typography>
+                <Typography variant="caption" sx={{ color: 'text.disabled', fontWeight: 800, textTransform: 'uppercase', mb: 1, display: 'block' }}>Type</Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <LayersOutlinedIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
-                  <Typography variant="body2" fontWeight="700">{selectedActivity.project}</Typography>
+                  <Typography variant="body2" fontWeight="700">{selectedActivity.name}</Typography>
                 </Box>
               </Box>
 
@@ -411,7 +403,7 @@ export function ActivityPage() {
                 <Button 
                   fullWidth 
                   variant="outlined" 
-                  onClick={() => navigate(`/projects/${selectedActivity.projectId}`)}
+                  onClick={() => navigate(`/${selectedActivity.targetName.toLowerCase()}s/${selectedActivity.targetId}`)}
                   sx={{ 
                     borderRadius: '8px', 
                     color: '#FFFFFF', 

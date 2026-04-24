@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { Project } from '../entities/project.entity';
 import { Task } from '../entities/task.entity';
 import { CreateProjectDto, UpdateProjectDto } from '../dtos';
+import { ActivityService } from '../../activity/services/activity.service';
 
 @Injectable()
 export class ProjectsService {
@@ -18,6 +19,7 @@ export class ProjectsService {
     private readonly projectRepository: Repository<Project>,
     @InjectRepository(Task)
     private readonly taskRepository: Repository<Task>,
+    private readonly activityService: ActivityService,
   ) {}
 
   /**
@@ -95,6 +97,13 @@ export class ProjectsService {
 
     const saved = await this.projectRepository.save(project);
 
+    await this.activityService.createActivity(createdByUserId, {
+      action: 'CREATE',
+      entityType: 'Project',
+      entityId: saved.id,
+      description: { name: saved.name },
+    });
+
     // Re-fetch with relations so the response is complete
     return await this.findOne(organizationId, saved.id);
   }
@@ -137,6 +146,9 @@ export class ProjectsService {
       );
     }
 
+    // Explicitly delete all tasks associated with this project
+    await this.taskRepository.delete({ projectId: project.id });
+    
     await this.projectRepository.remove(project);
     return { message: 'Project deleted successfully' };
   }

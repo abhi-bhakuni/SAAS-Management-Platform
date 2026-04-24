@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { taskApi } from '../services/api';
+import { useToast } from '../context/ToastContext';
+import { taskApi, projectsApi } from '../services/api';
 import { 
   Box, 
   Typography, 
@@ -27,12 +28,14 @@ import AddIcon from '@mui/icons-material/Add';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import CloseIcon from '@mui/icons-material/Close';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { AssigneeSelect } from '../components/AssigneeSelect';
 import type { UserOption } from '../components/AssigneeSelect';
 import { TaskStatusSelect } from '../components/TaskStatusSelect';
 import { TaskRow } from '../components/TaskRow';
 import { Sidebar } from '../components/Sidebar';
 import { DarkDatePicker } from '../components/DarkDatePicker';
+import { PremiumTooltip } from '../components/PremiumTooltip';
 
 import type { Task, TaskStatus, TaskPriority } from '../types/task';
 import { KanbanBoard } from '../components/KanbanBoard';
@@ -47,6 +50,7 @@ export function ProjectDetails() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useToast();
   
   const [tasks, setTasks] = useState<Task[]>([]);
   const [assignableUsers, setAssignableUsers] = useState<UserOption[]>([]);
@@ -69,6 +73,7 @@ export function ProjectDetails() {
   const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
   const [isActivityOpen, setIsActivityOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleteProjectModalOpen, setIsDeleteProjectModalOpen] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -99,6 +104,7 @@ export function ProjectDetails() {
         setAssignableUsers([{ id: 'unassigned', name: 'Unassigned', avatar: '' }, ...mappedUsers]);
       } catch (error) {
         console.error("Failed to fetch project details", error);
+        showToast('Failed to load project details. Please refresh.', 'error');
       }
       setIsLoading(false);
     };
@@ -134,7 +140,10 @@ export function ProjectDetails() {
       handleCloseAddModal();
     } catch (error) {
       console.error("Failed to create task", error);
+      showToast('Failed to create task. Please try again.', 'error');
+      return;
     }
+    showToast('Task created successfully.', 'success');
   };
   
   const handleRowClick = (task: Task) => {
@@ -158,7 +167,10 @@ export function ProjectDetails() {
       await taskApi.updateTaskStatus(projectId, taskId, newStatus);
     } catch (error) {
       console.error("Failed to update status", error);
+      showToast('Task status update failed. Please try again.', 'error');
+      return;
     }
+    showToast('Task status updated.', 'success');
   };
 
   const handleTasksOrderChange = (newTasks: Task[]) => {
@@ -187,7 +199,10 @@ export function ProjectDetails() {
       window.location.reload();
     } catch (error) {
       console.error("Failed to update task", error);
+      showToast('Failed to save task changes. Please try again.', 'error');
+      return;
     }
+    showToast('Task updated successfully.', 'success');
   };
 
   const handleDeleteTask = async () => {
@@ -205,6 +220,22 @@ export function ProjectDetails() {
       setIsDeleteModalOpen(false);
     } catch (error) {
       console.error("Failed to delete task", error);
+      showToast('Failed to delete task. Please try again.', 'error');
+      return;
+    }
+    showToast('Task deleted successfully.', 'success');
+  };
+
+  const confirmDeleteProject = async () => {
+    if (!user?.selectedOrgId || !projectId) return;
+    try {
+      await projectsApi.deleteProject(projectId);
+      setIsDeleteProjectModalOpen(false);
+      navigate('/');
+      showToast('Project deleted successfully.', 'success');
+    } catch (error) {
+      console.error("Failed to delete project", error);
+      showToast('Failed to delete project. Please try again.', 'error');
     }
   };
 
@@ -242,6 +273,7 @@ export function ProjectDetails() {
               borderColor: 'rgba(255, 255, 255, 0.05)',
               mr: 1
             }}>
+            <PremiumTooltip title="List View" color="#A1A1AA">
               <IconButton 
                 size="small" 
                 onClick={() => setViewMode('list')}
@@ -254,6 +286,8 @@ export function ProjectDetails() {
               >
                 <ViewListIcon sx={{ fontSize: 18 }} />
               </IconButton>
+            </PremiumTooltip>
+            <PremiumTooltip title="Board View" color="#A1A1AA">
               <IconButton 
                 size="small" 
                 onClick={() => setViewMode('board')}
@@ -266,21 +300,40 @@ export function ProjectDetails() {
               >
                 <ViewWeekIcon sx={{ fontSize: 18 }} />
               </IconButton>
+            </PremiumTooltip>
             </Box>
-            <IconButton 
-              onClick={() => setIsActivityOpen(true)}
-              sx={{ 
-                borderRadius: '8px', 
-                backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid',
-                borderColor: 'rgba(255, 255, 255, 0.05)',
-                color: 'text.secondary',
-                mr: 1,
-                '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)', color: '#FFFFFF' }
-              }}
-            >
-              <HistoryIcon sx={{ fontSize: 20 }} />
-            </IconButton>
+            <PremiumTooltip title="Project Activity" color='text.secondary'>
+              <IconButton 
+                onClick={() => setIsActivityOpen(true)}
+                sx={{ 
+                  borderRadius: '8px', 
+                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid',
+                  borderColor: 'rgba(255, 255, 255, 0.05)',
+                  color: 'text.secondary',
+                  mr: 1,
+                  '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)', color: '#FFFFFF' }
+                }}
+              >
+                <HistoryIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </PremiumTooltip>
+            <PremiumTooltip title="Delete Project" color="#ef4444">
+              <IconButton 
+                onClick={() => setIsDeleteProjectModalOpen(true)}
+                sx={{ 
+                  borderRadius: '8px', 
+                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid',
+                  borderColor: 'rgba(239, 68, 68, 0.1)',
+                  color: '#ef4444',
+                  mr: 1,
+                  '&:hover': { backgroundColor: 'rgba(239, 68, 68, 0.1)' }
+                }}
+              >
+                <DeleteOutlineIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </PremiumTooltip>
             <Button 
               variant="contained" 
               disableElevation
@@ -847,6 +900,80 @@ export function ProjectDetails() {
         </DialogActions>
       </Dialog>
 
+      {/* Delete Project Confirmation Modal */}
+      <Dialog
+        open={isDeleteProjectModalOpen}
+        onClose={() => setIsDeleteProjectModalOpen(false)}
+        PaperProps={{
+          elevation: 0,
+          sx: {
+            borderRadius: '12px',
+            width: '100%',
+            maxWidth: 400,
+            backgroundColor: '#18181B',
+            border: '1px solid',
+            borderColor: '#2A2A2E',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+          }
+        }}
+      >
+        <DialogContent sx={{ p: 4, textAlign: 'center' }}>
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ 
+              p: 2, 
+              borderRadius: '12px', 
+              backgroundColor: 'rgba(239, 68, 68, 0.1)', 
+              border: '1px solid rgba(239, 68, 68, 0.2)', 
+              display: 'inline-flex',
+              mb: 3
+            }}>
+              <DeleteOutlineIcon sx={{ fontSize: 32, color: '#ef4444' }} />
+            </Box>
+            <Typography variant="h6" fontWeight="700" color="text.primary" gutterBottom>
+              Delete Project
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+              Are you sure you want to completely delete this project and all its tasks? This action cannot be undone.
+            </Typography>
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 4, pb: 4, pt: 0, justifyContent: 'center', gap: 2 }}>
+          <Button 
+            onClick={() => setIsDeleteProjectModalOpen(false)} 
+            sx={{ 
+              color: 'text.secondary', 
+              textTransform: 'none', 
+              fontWeight: 600, 
+              borderRadius: '6px',
+              fontSize: '0.85rem',
+              px: 3,
+              '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)', color: '#FFFFFF' }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={confirmDeleteProject} 
+            variant="contained"
+            disableElevation
+            sx={{ 
+              borderRadius: '6px', 
+              textTransform: 'none', 
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              px: 3,
+              py: 0.8,
+              backgroundColor: '#ef4444',
+              color: '#FFFFFF',
+              '&:hover': { backgroundColor: '#dc2626' }
+            }}
+          >
+            Delete Project
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
       {/* Activity Feed Sidebar */}
       <Drawer
         anchor="right"
@@ -863,8 +990,8 @@ export function ProjectDetails() {
         }}
       >
         <ActivityFeed
-          orgId={user?.selectedOrgId || 'demo-org'}
-          projectId={projectId || 'demo-project'}
+          orgId={user?.selectedOrgId || ''}
+          projectId={projectId || ''}
         />
       </Drawer>
     </Box>

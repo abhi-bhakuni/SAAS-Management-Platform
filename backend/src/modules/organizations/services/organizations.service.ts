@@ -305,7 +305,7 @@ export class OrganizationsService {
         
         return {
             id: task.id,
-            user: task.assignedTo ? `${task.assignedTo.firstName} ${task.assignedTo.lastName}`.trim() : "Unassigned",
+            user: task.assignedTo ? `${task.assignedTo.firstName}${task.assignedTo.lastName ? ' ' + task.assignedTo.lastName : ''}`.trim() : "Unassigned",
             action: actionStr,
             timestamp: timeAgo(task.updatedAt)
         };

@@ -328,7 +328,7 @@ export class InitialSchema1704067200000 implements MigrationInterface {
             type: 'uuid',
           },
           {
-            name: 'changes',
+            name: 'description',
             type: 'json',
             isNullable: true,
           },

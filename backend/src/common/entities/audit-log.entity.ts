@@ -30,7 +30,7 @@ export class AuditLog {
   entityId: string;
 
   @Column({ type: 'json', nullable: true })
-  changes: Record<string, any>;
+  description: Record<string, any>;
 
   @Column({ type: 'varchar', nullable: true })
   ipAddress: string;

@@ -3,7 +3,7 @@ import { io, Socket } from 'socket.io-client';
 
 interface ActivityEvent {
   id: string;
-  type: 'task_moved' | 'task_assigned' | 'task_created' | 'task_updated' | 'task_deleted';
+  type: string;
   message: string;
   userId: string;
   userName: string;
