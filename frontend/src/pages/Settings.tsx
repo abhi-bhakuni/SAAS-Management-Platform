@@ -73,7 +73,9 @@ export function Settings() {
   const [inviteRole, setInviteRole] = useState<'MEMBER' | 'MANAGER' | 'ADMIN'>('MEMBER');
   const [isSendingInvite, setIsSendingInvite] = useState(false);
   const [revokingInviteId, setRevokingInviteId] = useState<string | null>(null);
+  const [inviteToRevoke, setInviteToRevoke] = useState<Invite | null>(null);
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<Member | null>(null);
   const [updatingRoleMemberId, setUpdatingRoleMemberId] = useState<string | null>(null);
   const [projectCount, setProjectCount] = useState<number | null>(null);
   const [subscription, setSubscription] = useState<any | null>(null);
@@ -270,37 +272,45 @@ export function Settings() {
     }
   };
 
-  const handleRemoveMember = async (userId: string) => {
-    if (!user?.selectedOrgId) return;
+  const handleRemoveMember = (member: Member) => {
+    setMemberToRemove(member);
+  };
 
-    setRemovingMemberId(userId);
+  const confirmRemoveMember = async () => {
+    if (!memberToRemove || !user?.selectedOrgId) return;
+
+    setRemovingMemberId(memberToRemove.userId);
     try {
-      await organizationApi.removeMember(userId);
-      setMembers((current) => current.filter((m) => m.userId !== userId));
+      await organizationApi.removeMember(memberToRemove.userId);
+      setMembers((current) => current.filter((m) => m.userId !== memberToRemove.userId));
       showToast('Member removed.', 'success');
     } catch (error) {
       console.error('Failed to remove member', error);
       showToast('Failed to remove member. Please try again.', 'error');
     } finally {
       setRemovingMemberId(null);
+      setMemberToRemove(null);
     }
   };
 
-  const handleRevokeInvite = async (inviteId: string) => {
-    if (!user?.selectedOrgId) return;
+  const handleRevokeInvite = (invite: Invite) => {
+    setInviteToRevoke(invite);
+  };
 
-    setRevokingInviteId(inviteId);
+  const confirmRevokeInvite = async () => {
+    if (!inviteToRevoke || !user?.selectedOrgId) return;
+
+    setRevokingInviteId(inviteToRevoke.id);
     try {
-      await organizationApi.revokeInvite(inviteId);
-      setPendingInvites((currentInvites) =>
-        currentInvites.filter((invite) => invite.id !== inviteId),
-      );
+      await organizationApi.revokeInvite(inviteToRevoke.id);
+      setPendingInvites((current) => current.filter((i) => i.id !== inviteToRevoke.id));
       showToast('Invite revoked.', 'success');
     } catch (error) {
       console.error('Failed to revoke invite', error);
       showToast('Failed to revoke invite. Please try again.', 'error');
     } finally {
       setRevokingInviteId(null);
+      setInviteToRevoke(null);
     }
   };
 
@@ -317,7 +327,7 @@ export function Settings() {
   const nextBillingDate = subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : null;
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh', backgroundColor: '#0F0F11', overflow: 'hidden' }}>
+    <Box sx={{ display: 'flex', height: '100vh', backgroundColor: '#0F0F11', overflow: 'hidden', pt: { xs: '56px', md: 0 } }}>
       <Sidebar />
       <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         
@@ -530,7 +540,7 @@ export function Settings() {
                               <Button
                                 size="small"
                                 sx={{ color: 'text.disabled', textTransform: 'none' }}
-                                onClick={() => handleRemoveMember(member.userId)}
+                                onClick={() => handleRemoveMember(member)}
                                 disabled={removingMemberId === member.userId}
                               >
                                 {removingMemberId === member.userId ? 'Removing…' : 'Remove'}
@@ -597,7 +607,7 @@ export function Settings() {
                                 <Button
                                   size="small"
                                   sx={{ color: 'text.disabled', textTransform: 'none' }}
-                                  onClick={() => handleRevokeInvite(invite.id)}
+                                  onClick={() => handleRevokeInvite(invite)}
                                   disabled={revokingInviteId === invite.id}
                                 >
                                   {revokingInviteId === invite.id ? 'Revoking…' : 'Revoke'}
@@ -708,6 +718,116 @@ export function Settings() {
           </Box>
         </Box>
       </Box>
+
+      <Dialog
+        open={!!memberToRemove}
+        onClose={() => { if (!removingMemberId) setMemberToRemove(null); }}
+        PaperProps={{
+          elevation: 0,
+          sx: {
+            borderRadius: '12px',
+            width: '100%',
+            maxWidth: 400,
+            backgroundColor: '#18181B',
+            border: '1px solid #2A2A2E',
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#FFFFFF', pt: 3, pb: 1 }}>
+          Remove Member
+        </DialogTitle>
+        <DialogContent sx={{ pb: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Are you sure you want to remove{' '}
+            <Box component="span" sx={{ color: '#FFFFFF', fontWeight: 700 }}>
+              {memberToRemove ? `${memberToRemove.user.firstName} ${memberToRemove.user.lastName ?? ''}`.trim() : ''}
+            </Box>
+            {' '}from this workspace? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
+          <Button
+            onClick={() => setMemberToRemove(null)}
+            disabled={!!removingMemberId}
+            sx={{ color: 'text.disabled', textTransform: 'none' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disableElevation
+            onClick={confirmRemoveMember}
+            disabled={!!removingMemberId}
+            sx={{
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 700,
+              px: 3,
+              py: 1,
+              backgroundColor: '#ef4444',
+              color: '#FFFFFF',
+              '&:hover': { backgroundColor: '#dc2626' },
+            }}
+          >
+            {removingMemberId ? 'Removing…' : 'Remove'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={!!inviteToRevoke}
+        onClose={() => { if (!revokingInviteId) setInviteToRevoke(null); }}
+        PaperProps={{
+          elevation: 0,
+          sx: {
+            borderRadius: '12px',
+            width: '100%',
+            maxWidth: 400,
+            backgroundColor: '#18181B',
+            border: '1px solid #2A2A2E',
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#FFFFFF', pt: 3, pb: 1 }}>
+          Revoke Invitation
+        </DialogTitle>
+        <DialogContent sx={{ pb: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            Are you sure you want to revoke the invitation sent to{' '}
+            <Box component="span" sx={{ color: '#FFFFFF', fontWeight: 700 }}>
+              {inviteToRevoke?.email}
+            </Box>
+            ? They will no longer be able to join this workspace with this invite.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
+          <Button
+            onClick={() => setInviteToRevoke(null)}
+            disabled={!!revokingInviteId}
+            sx={{ color: 'text.disabled', textTransform: 'none' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disableElevation
+            onClick={confirmRevokeInvite}
+            disabled={!!revokingInviteId}
+            sx={{
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 700,
+              px: 3,
+              py: 1,
+              backgroundColor: '#ef4444',
+              color: '#FFFFFF',
+              '&:hover': { backgroundColor: '#dc2626' },
+            }}
+          >
+            {revokingInviteId ? 'Revoking…' : 'Revoke'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog
         open={isInviteModalOpen}

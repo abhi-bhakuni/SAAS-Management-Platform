@@ -20,6 +20,12 @@ export class AuditLog {
   @Column({ type: 'uuid', nullable: true })
   userId: string;
 
+  @Column({ type: 'uuid', nullable: true })
+  organizationId: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  projectId: string;
+
   @Column({ type: 'varchar', length: 50 })
   action: 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'EXPORT';
 

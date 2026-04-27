@@ -134,7 +134,7 @@ export function Dashboard() {
 
   return (
     <>
-    <Box sx={{ display: 'flex', height: '100vh', backgroundColor: '#0F0F11' }}>
+    <Box sx={{ display: 'flex', height: '100vh', backgroundColor: '#0F0F11', pt: { xs: '56px', md: 0 } }}>
       <Sidebar />
       <Box sx={{ flexGrow: 1, p: { xs: 3, md: 5 }, overflowY: 'auto' }}>
         

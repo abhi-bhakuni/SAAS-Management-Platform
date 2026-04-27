@@ -4,7 +4,6 @@ import {
   UnauthorizedException,
   ConflictException,
   ForbiddenException,
-  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -19,7 +18,6 @@ import { OrganizationInvitesService } from '@/modules/organizations/services/org
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
   constructor(
     private jwtService: JwtService,
     private usersService: UsersService,
@@ -64,6 +62,7 @@ export class AuthService {
         await this.auditLogRepository.save(
           this.auditLogRepository.create({
             userId: user.id,
+            organizationId: invite.organizationId,
             action: 'CREATE',
             entityType: 'UserInvite',
             entityId: user.id,

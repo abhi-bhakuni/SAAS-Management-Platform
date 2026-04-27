@@ -49,6 +49,15 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const getTokenExpiry = (token: string): number | null => {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('authToken'));
@@ -72,6 +81,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     };
     fetchUser();
+  }, [token]);
+
+  // Auto-logout when the JWT expires
+  useEffect(() => {
+    if (!token) return;
+
+    const expiry = getTokenExpiry(token);
+    if (!expiry) return;
+
+    const msUntilExpiry = expiry - Date.now();
+
+    if (msUntilExpiry <= 0) {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+      setToken(null);
+      setUser(null);
+      window.location.href = '/login';
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+      setToken(null);
+      setUser(null);
+      window.location.href = '/login';
+    }, msUntilExpiry);
+
+    return () => clearTimeout(timer);
   }, [token]);
 
   const login = async (credentials: any) => {

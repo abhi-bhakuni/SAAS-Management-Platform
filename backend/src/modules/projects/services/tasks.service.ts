@@ -151,6 +151,7 @@ export class TasksService {
       action: 'CREATE',
       entityType: 'Task',
       entityId: saved.id,
+      projectId,
       description: { name: saved.title },
     });
 
@@ -479,6 +480,7 @@ export class TasksService {
       action: 'UPDATE',
       entityType: 'TaskStatus',
       entityId: taskId,
+      projectId,
       description: { fromStatus: oldStatus, toStatus: dto.status, title: task.title },
     });
 

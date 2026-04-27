@@ -79,7 +79,8 @@ export class UsersService {
   async findByEmail(email: string, includePassword = false) {
     const query = this.userRepository
       .createQueryBuilder('user')
-      .where('user.email = :email', { email });
+      .where('user.email = :email', { email })
+      .andWhere('user.isActive = :isActive', { isActive: true });
 
     if (includePassword) {
       query.addSelect('user.password');
@@ -89,10 +90,26 @@ export class UsersService {
   }
 
   async create(createUserDto: CreateUserDto) {
-    const existingUser = await this.findByEmail(createUserDto.email);
-
-    if (existingUser) {
+    const existingActive = await this.findByEmail(createUserDto.email);
+    if (existingActive) {
       throw new ConflictException('Email already in use');
+    }
+
+    // If the email belongs to a previously removed (inactive) user, reactivate with new data
+    const inactiveUser = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.email = :email', { email: createUserDto.email })
+      .andWhere('user.isActive = :isActive', { isActive: false })
+      .getOne();
+
+    if (inactiveUser) {
+      Object.assign(inactiveUser, createUserDto);
+      inactiveUser.isActive = true;
+      inactiveUser.verificationToken = this.generateVerificationToken();
+      const saved = await this.userRepository.save(inactiveUser);
+      const { password, ...userWithoutPassword } = saved;
+      return userWithoutPassword;
     }
 
     const user = this.userRepository.create(createUserDto);
@@ -100,7 +117,6 @@ export class UsersService {
 
     const savedUser = await this.userRepository.save(user);
 
-    // Create response without password
     const { password, ...userWithoutPassword } = savedUser;
     return userWithoutPassword;
   }

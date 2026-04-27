@@ -246,8 +246,12 @@ export class OrganizationInvitesService {
 
       this.logger.log(`New user created: ${invite.email}`);
     } else {
-      // Existing user accepts invite - they'll get added to new org
+      // Existing user accepts invite - reactivate if previously removed
       this.logger.log(`Existing user ${invite.email} accepting invite to new org`);
+      if (!user.isActive) {
+        user.isActive = true;
+        await this.userRepository.save(user);
+      }
     }
 
     if (!user || !user.id) {

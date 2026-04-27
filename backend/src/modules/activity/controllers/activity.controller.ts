@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { ActivityService } from '../services/activity.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -12,8 +12,11 @@ export class ActivityController {
   constructor(private readonly activityService: ActivityService) {}
 
   @Get()
-  async getActivity(@CurrentOrganization() orgId: string) {
-    return this.activityService.getActivityForOrg(orgId);
+  async getActivity(
+    @CurrentOrganization() orgId: string,
+    @Query('projectId') projectId?: string,
+  ) {
+    return this.activityService.getActivityForOrg(orgId, projectId);
   }
 
   @Post()

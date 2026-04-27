@@ -102,7 +102,8 @@ export function ActivityPage() {
     return groups;
   }, [filteredActivities]);
 
-  const navigateToActivity = (targetName: string, targetId: string) => {
+  const navigateToActivity = (targetName: string, targetId: string, type?: string) => {
+    if (type === 'member_removed' || type === 'project_deleted') return;
     const name = targetName.toLowerCase();
     if (name === 'user' || name === 'userinvite') {
       navigate('/settings', { state: { tab: 1 } });
@@ -124,7 +125,7 @@ export function ActivityPage() {
   };
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh', backgroundColor: '#0F0F11', overflow: 'hidden' }}>
+    <Box sx={{ display: 'flex', height: '100vh', backgroundColor: '#0F0F11', overflow: 'hidden', pt: { xs: '56px', md: 0 } }}>
       <Sidebar />
       <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         
@@ -247,14 +248,14 @@ export function ActivityPage() {
                             />
 
                             {/* Main Content */}
-                            <Box sx={{ flexGrow: 1 }}>
-                              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5, lineHeight: 1.4 }}>
+                            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5, lineHeight: 1.4, wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                                 <Box component="span" sx={{ fontWeight: 800, color: '#FFFFFF', mr: 1 }}>{activity.user}</Box>
                                 {activity.description} 
                                 <Box 
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    navigateToActivity(activity.targetName, activity.targetId);
+                                    navigateToActivity(activity.targetName, activity.targetId, activity.type);
                                   }}
                                   component="span" 
                                   sx={{ 
@@ -359,11 +360,14 @@ export function ActivityPage() {
         open={!!selectedActivity}
         onClose={() => setSelectedActivity(null)}
         PaperProps={{
-          sx: { 
-            width: { xs: '100vw', sm: 400 }, 
-            backgroundColor: '#141416', 
+          sx: {
+            width: { xs: '100vw', sm: 400 },
+            backgroundColor: '#141416',
             borderLeft: '1px solid rgba(255, 255, 255, 0.05)',
-            backgroundImage: 'none'
+            backgroundImage: 'none',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
           }
         }}
       >
@@ -376,7 +380,7 @@ export function ActivityPage() {
           </Box>
 
           {selectedActivity && (
-            <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 4, flex: 1, overflow: 'hidden' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <Avatar src={selectedActivity.avatar} sx={{ width: 48, height: 48 }} />
                 <Box>
@@ -391,14 +395,14 @@ export function ActivityPage() {
                 <Typography variant="caption" sx={{ color: 'text.disabled', fontWeight: 800, textTransform: 'uppercase', mb: 1, display: 'block' }}>Event</Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                   {getActivityIcon(selectedActivity.type, selectedActivity.color)}
-                  <Typography variant="body1" fontWeight="600">{selectedActivity.description}</Typography>
+                  <Typography variant="body1" fontWeight="600" sx={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>{selectedActivity.description}</Typography>
                 </Box>
               </Box>
 
               <Box>
                 <Typography variant="caption" sx={{ color: 'text.disabled', fontWeight: 800, textTransform: 'uppercase', mb: 1, display: 'block' }}>Target</Typography>
-                <Typography variant="h6" fontWeight="800" color={selectedActivity.color}>{selectedActivity.targetName}</Typography>
-                <Typography variant="caption" color="text.disabled">ID: {selectedActivity.targetId || ''}</Typography>
+                <Typography variant="h6" fontWeight="800" color={selectedActivity.color} sx={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>{selectedActivity.targetName}</Typography>
+                <Typography variant="caption" color="text.disabled" sx={{ wordBreak: 'break-all' }}>ID: {selectedActivity.targetId || ''}</Typography>
               </Box>
 
               <Box>
@@ -411,28 +415,30 @@ export function ActivityPage() {
 
               <Box>
                 <Typography variant="caption" sx={{ color: 'text.disabled', fontWeight: 800, textTransform: 'uppercase', mb: 1, display: 'block' }}>Additional Details</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', lineHeight: 1.6 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', lineHeight: 1.6, wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                   "{selectedActivity.detail}"
                 </Typography>
               </Box>
 
-              <Box sx={{ mt: 'auto', pt: 4 }}>
-                <Button 
-                  fullWidth 
-                  variant="outlined" 
-                  onClick={() => navigateToActivity(selectedActivity.targetName, selectedActivity.targetId)}
-                  sx={{ 
-                    borderRadius: '8px', 
-                    color: '#FFFFFF', 
-                    borderColor: 'rgba(255, 255, 255, 0.1)',
-                    textTransform: 'none',
-                    fontWeight: 700,
-                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.03)', borderColor: 'rgba(255, 255, 255, 0.2)' }
-                  }}
-                >
-                  View in Context
-                </Button>
-              </Box>
+              {!(selectedActivity.type === 'member_removed' || selectedActivity.type === 'project_deleted') && (
+                <Box sx={{ mt: 'auto', pt: 4 }}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    onClick={() => navigateToActivity(selectedActivity.targetName, selectedActivity.targetId, selectedActivity.type)}
+                    sx={{
+                      borderRadius: '8px',
+                      color: '#FFFFFF',
+                      borderColor: 'rgba(255, 255, 255, 0.1)',
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.03)', borderColor: 'rgba(255, 255, 255, 0.2)' }
+                    }}
+                  >
+                    View in Context
+                  </Button>
+                </Box>
+              )}
             </Box>
           )}
         </Box>

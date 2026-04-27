@@ -1,21 +1,23 @@
-import { Injectable, NotFoundException, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserOrganizationMembership } from '../../users/entities/user-organization-membership.entity';
 import { OrganizationRole } from '../../../common/enums';
 import { Organization } from '../entities/organization.entity';
 import { User } from '../../users/entities/user.entity';
+import { AuditLog } from '../../../common/entities/audit-log.entity';
 import { Repository } from 'typeorm';
 import { OrganizationMembershipRepository } from '../../users/repositories/organization-membership.repository';
 
 @Injectable()
 export class UserOrganizationService {
-  private readonly logger = new Logger(UserOrganizationService.name);
   constructor(
     private membershipRepository: OrganizationMembershipRepository,
     @InjectRepository(Organization)
     private organizationRepository: Repository<Organization>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(AuditLog)
+    private auditLogRepository: Repository<AuditLog>,
   ) {}
 
   /**
@@ -72,6 +74,7 @@ export class UserOrganizationService {
   async removeUserFromOrganization(
     userId: string,
     organizationId: string,
+    removedByUserId?: string,
   ): Promise<void> {
     const membership = await this.membershipRepository.findByUserAndOrg(
       userId,
@@ -82,7 +85,31 @@ export class UserOrganizationService {
       throw new NotFoundException(`User is not a member of this organization`);
     }
 
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+
     await this.membershipRepository.remove(membership);
+
+    if (user) {
+      user.isActive = false;
+      await this.userRepository.save(user);
+
+      await this.auditLogRepository.save(
+        this.auditLogRepository.create({
+          userId: removedByUserId ?? userId,
+          organizationId,
+          action: 'DELETE',
+          entityType: 'Member',
+          entityId: userId,
+          description: {
+            removedUserId: userId,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            organizationId,
+          },
+        }),
+      );
+    }
   }
 
   /**

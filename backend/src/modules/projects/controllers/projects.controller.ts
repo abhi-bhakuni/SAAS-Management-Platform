@@ -99,7 +99,7 @@ export class ProjectsController {
     @CurrentUser() user: any,
   ) {
     this.validateWorkspace(orgId, user);
-    return this.projectsService.remove(orgId, id);
+    return this.projectsService.remove(orgId, id, user.id);
   }
 
   // ─── Private helpers ────────────────────────────────────────────────────────

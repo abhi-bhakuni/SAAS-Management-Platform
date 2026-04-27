@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Project } from '../entities/project.entity';
@@ -13,7 +8,6 @@ import { ActivityService } from '../../activity/services/activity.service';
 
 @Injectable()
 export class ProjectsService {
-  private readonly logger = new Logger(ProjectsService.name);
   constructor(
     @InjectRepository(Project)
     private readonly projectRepository: Repository<Project>,
@@ -101,6 +95,7 @@ export class ProjectsService {
       action: 'CREATE',
       entityType: 'Project',
       entityId: saved.id,
+      projectId: saved.id,
       description: { name: saved.name },
     });
 
@@ -135,7 +130,7 @@ export class ProjectsService {
   /**
    * Permanently delete a project.  Validates org ownership first.
    */
-  async remove(organizationId: string, projectId: string) {
+  async remove(organizationId: string, projectId: string, deletedByUserId?: string) {
     const project = await this.projectRepository.findOne({
       where: { id: projectId, organizationId },
     });
@@ -148,8 +143,17 @@ export class ProjectsService {
 
     // Explicitly delete all tasks associated with this project
     await this.taskRepository.delete({ projectId: project.id });
-    
+
     await this.projectRepository.remove(project);
+
+    await this.activityService.createActivity(deletedByUserId ?? '', {
+      action: 'DELETE',
+      entityType: 'Project',
+      entityId: projectId,
+      projectId,
+      description: { name: project.name },
+    });
+
     return { message: 'Project deleted successfully' };
   }
 

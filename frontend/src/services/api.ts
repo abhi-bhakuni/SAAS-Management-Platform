@@ -223,12 +223,12 @@ export const taskApi = {
 };
 
 export const activityApi = {
-  getActivity: async () => {
+  getActivity: async (projectId?: string) => {
     if (isSandboxMode()) {
       const response = await api.get('/sandbox/activity');
       return response.data;
     }
-    const response = await api.get(`/activity`);
+    const response = await api.get('/activity', { params: projectId ? { projectId } : undefined });
     return response.data;
   }
 };

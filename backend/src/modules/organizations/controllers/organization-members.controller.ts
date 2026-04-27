@@ -136,7 +136,7 @@ export class OrganizationMembersController {
       }
     }
 
-    await this.userOrgService.removeUserFromOrganization(userId, orgId);
+    await this.userOrgService.removeUserFromOrganization(userId, orgId, user.id);
 
     return { success: true };
   }

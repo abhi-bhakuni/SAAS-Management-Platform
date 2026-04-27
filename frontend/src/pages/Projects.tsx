@@ -107,7 +107,7 @@ export function Projects() {
   };
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden', backgroundColor: '#0F0F11' }}>
+    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden', backgroundColor: '#0F0F11', pt: { xs: '56px', md: 0 } }}>
       <Sidebar />
 
       {/* Main Content */}

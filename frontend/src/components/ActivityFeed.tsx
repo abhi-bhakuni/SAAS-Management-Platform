@@ -45,11 +45,11 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ orgId, projectId }) 
     // Fetch historical activities
     const fetchActivities = async () => {
       try {
-        const data = await activityApi.getActivity();
+        const data = await activityApi.getActivity(projectId || undefined);
         const pastActivities = data.map((a: any) => ({
           id: a.id,
           type: a.type as ActivityEvent['type'],
-          message: `${a.description} "${a.targetName}" ${a.detail !== '{}' ? `(${a.detail})` : ''}`.trim(),
+          message: `${a.description} "${a.targetName}"`.trim(),
           userName: a.user,
           projectId: projectId,
           orgId: orgId,
@@ -92,11 +92,10 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ orgId, projectId }) 
   };
 
   return (
-    <Box sx={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      height: '100%',
-      backgroundColor: '#18181B', // Requested background
+    <Box sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      backgroundColor: '#18181B',
       color: 'text.primary'
     }}>
       {/* Header */}
@@ -129,7 +128,7 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ orgId, projectId }) 
       </Box>
 
       {/* Activity List */}
-      <List sx={{ flex: 1, overflowY: 'auto', p: 0 }}>
+      <List sx={{ flex: 1, overflow: 'visible', p: 0 }}>
         {activities.length === 0 ? (
           <Box sx={{ p: 4, textAlign: 'center' }}>
             <Typography variant="body2" color="text.disabled">No recent activity</Typography>
@@ -161,7 +160,7 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ orgId, projectId }) 
                   </ListItemAvatar>
                   <ListItemText
                     primary={
-                      <Typography variant="body2" color="#FFFFFF" sx={{ lineHeight: 1.5 }}>
+                      <Typography variant="body2" color="#FFFFFF" sx={{ lineHeight: 1.5, wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                         <Box component="span" sx={{ fontWeight: 700, mr: 0.5 }}>{activity.userName}</Box>
                         {activity.message}
                       </Typography>

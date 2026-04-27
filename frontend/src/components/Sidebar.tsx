@@ -1,17 +1,19 @@
 import { useState } from 'react';
-import { 
-  Box, 
-  Typography, 
-  List, 
-  ListItem, 
-  ListItemButton, 
-  ListItemIcon, 
+import {
+  Box,
+  Typography,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
   ListItemText,
   Divider,
   Button,
   Chip,
   Tooltip,
   IconButton,
+  Menu,
+  MenuItem,
   useTheme,
   useMediaQuery
 } from '@mui/material';
@@ -27,6 +29,7 @@ import LoginOutlinedIcon from '@mui/icons-material/LoginOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import MenuIcon from '@mui/icons-material/Menu';
 
 const EXPANDED_WIDTH = 240;
 const COLLAPSED_WIDTH = 56;
@@ -39,8 +42,8 @@ export function Sidebar() {
   const location = useLocation();
   const { isAuthenticated, logout } = useAuth();
 
-  // On small screens start collapsed; on large screens start expanded
   const [manualCollapsed, setManualCollapsed] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
 
   // Collapsed when small screen OR manually collapsed
   const collapsed = isSmallScreen || manualCollapsed;
@@ -78,6 +81,129 @@ export function Sidebar() {
       active: location.pathname.startsWith('/settings') 
     }
   ];
+
+  if (isSmallScreen) {
+    return (
+      <>
+        {/* Zero-width placeholder keeps the flex-row layout intact */}
+        <Box sx={{ width: 0, flexShrink: 0 }} />
+
+        {/* Fixed top bar */}
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 56,
+            zIndex: 1200,
+            backgroundColor: '#0F0F11',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            display: 'flex',
+            alignItems: 'center',
+            px: 2,
+            gap: 1.5,
+          }}
+        >
+          <Box
+            sx={{
+              width: 28,
+              height: 28,
+              borderRadius: '6px',
+              backgroundColor: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#000000',
+              flexShrink: 0,
+              cursor: 'pointer',
+            }}
+            onClick={() => navigate('/dashboard')}
+          >
+            <WidgetsOutlinedIcon fontSize="small" sx={{ fontSize: 18 }} />
+          </Box>
+
+          <Typography variant="body2" fontWeight={600} color="text.primary" noWrap sx={{ flexGrow: 1 }}>
+            Acme Workspace
+          </Typography>
+
+          <IconButton
+            onClick={(e) => setMenuAnchor(e.currentTarget)}
+            size="small"
+            sx={{ color: 'text.secondary', '&:hover': { color: '#FFFFFF', backgroundColor: 'rgba(255,255,255,0.05)' } }}
+          >
+            <MenuIcon sx={{ fontSize: 20 }} />
+          </IconButton>
+
+          <Menu
+            anchorEl={menuAnchor}
+            open={Boolean(menuAnchor)}
+            onClose={() => setMenuAnchor(null)}
+            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            slotProps={{
+              paper: {
+                sx: {
+                  backgroundColor: '#18181B',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '10px',
+                  minWidth: 200,
+                  mt: 0.5,
+                  backgroundImage: 'none',
+                },
+              },
+            }}
+          >
+            {navItems.map((item) => (
+              <MenuItem
+                key={item.text}
+                selected={item.active}
+                onClick={() => { navigate(item.path); setMenuAnchor(null); }}
+                sx={{
+                  borderRadius: '6px',
+                  mx: 0.5,
+                  gap: 1.5,
+                  color: item.active ? '#FFFFFF' : 'text.secondary',
+                  '&.Mui-selected': { backgroundColor: 'rgba(255,255,255,0.08)', color: '#FFFFFF' },
+                  '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 'unset', color: 'inherit', '& svg': { fontSize: 18 } }}>
+                  {item.icon}
+                </ListItemIcon>
+                <Typography variant="body2" fontWeight={item.active ? 700 : 500}>{item.text}</Typography>
+              </MenuItem>
+            ))}
+
+            <Divider sx={{ my: 0.5, borderColor: 'rgba(255,255,255,0.06)' }} />
+
+            {isAuthenticated ? (
+              <MenuItem
+                onClick={() => { logout(); navigate('/login'); setMenuAnchor(null); }}
+                sx={{ borderRadius: '6px', mx: 0.5, gap: 1.5, color: 'text.secondary', '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)', color: '#FF4D4D' } }}
+              >
+                <ListItemIcon sx={{ minWidth: 'unset', color: 'inherit', '& svg': { fontSize: 18 } }}>
+                  <LogoutOutlinedIcon />
+                </ListItemIcon>
+                <Typography variant="body2" fontWeight={500}>Log Out</Typography>
+              </MenuItem>
+            ) : (
+              <MenuItem
+                onClick={() => { navigate('/login'); setMenuAnchor(null); }}
+                sx={{ borderRadius: '6px', mx: 0.5, gap: 1.5, color: 'text.secondary', '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)', color: '#FFFFFF' } }}
+              >
+                <ListItemIcon sx={{ minWidth: 'unset', color: 'inherit', '& svg': { fontSize: 18 } }}>
+                  <LoginOutlinedIcon />
+                </ListItemIcon>
+                <Typography variant="body2" fontWeight={500}>Sign In</Typography>
+              </MenuItem>
+            )}
+          </Menu>
+        </Box>
+      </>
+    );
+  }
 
   return (
     <Box

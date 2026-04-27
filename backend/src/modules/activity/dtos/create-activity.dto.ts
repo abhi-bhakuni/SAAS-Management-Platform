@@ -14,4 +14,8 @@ export class CreateActivityDto {
   @IsOptional()
   @IsObject()
   description?: Record<string, any>;
+
+  @IsOptional()
+  @IsUUID()
+  projectId?: string;
 }

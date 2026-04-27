@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Organization } from '../entities/organization.entity';
@@ -9,12 +9,11 @@ import {
 } from '../dtos';
 import { Project } from '../../projects/entities/project.entity';
 import { Task } from '../../projects/entities/task.entity';
-import { TaskStatus, ProjectStatus } from '../../../common/enums';
+import { TaskStatus } from '../../../common/enums';
 import { AuditLog } from '../../../common/entities/audit-log.entity';
 
 @Injectable()
 export class OrganizationsService {
-  private readonly logger = new Logger(OrganizationsService.name);
   constructor(
     @InjectRepository(Organization)
     private readonly organizationRepository: Repository<Organization>,
@@ -277,53 +276,46 @@ export class OrganizationsService {
         where: { projectId: this.getInHelper(projectIds) as any, status: TaskStatus.DONE, updatedAt: this.getBetweenHelper(startOfPrevMonth, endOfPrevMonth) }
       });
 
-      
-      // 1 Month Activity for recentActivity (from audit logs)
-      const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      const recentAuditLogs = await this.auditLogRepository
-        .createQueryBuilder('audit')
-        .leftJoinAndSelect('audit.user', 'user')
-        .leftJoin('user.memberships', 'membership')
-        .where('membership.organizationId = :orgId', { orgId })
-        .andWhere('audit.createdAt >= :oneMonthAgo', { oneMonthAgo })
-        .orderBy('audit.createdAt', 'DESC')
-        .limit(2)
-        .getMany();
-      
-      const timeAgo = (date: Date) => {
-        const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-        let interval = seconds / 86400;
-        if (interval > 1) return Math.floor(interval) + " days ago";
-        interval = seconds / 3600;
-        if (interval > 1) return Math.floor(interval) + " hours ago";
-        interval = seconds / 60;
-        if (interval > 1) return Math.floor(interval) + " mins ago";
-        return Math.floor(seconds) + " seconds ago";
-      };
-
-      recentActivityData = recentAuditLogs.map((log) => {
-        const payload = log.description || {};
-        const entityTypeLower = log.entityType?.toLowerCase() || 'item';
-
-        let action: string;
-        if (entityTypeLower === 'userinvite') {
-          action = `joined via invite`;
-        } else {
-          const entityName = payload.title || payload.name || entityTypeLower;
-          const actionVerb = log.action?.toLowerCase() || 'updated';
-          action = `${actionVerb} ${entityTypeLower} "${entityName}"`;
-        }
-
-        return {
-          id: log.id,
-          user: log.user
-            ? `${log.user.firstName}${log.user.lastName ? ` ${log.user.lastName}` : ''}`.trim()
-            : 'Unknown',
-          action,
-          timestamp: timeAgo(log.createdAt),
-        };
-      });
     }
+
+    // Recent project/task activity — query audit logs directly by entityType
+    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const recentAuditLogs = await this.auditLogRepository
+      .createQueryBuilder('audit')
+      .leftJoinAndSelect('audit.user', 'user')
+      .innerJoin('user.memberships', 'membership', 'membership.organizationId = :orgId', { orgId })
+      .where('audit.entityType IN (:...entityTypes)', { entityTypes: ['Project', 'Task', 'TaskStatus'] })
+      .andWhere('audit.createdAt >= :oneMonthAgo', { oneMonthAgo })
+      .orderBy('audit.createdAt', 'DESC')
+      .limit(2)
+      .getMany();
+
+    const timeAgo = (date: Date) => {
+      const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+      let interval = seconds / 86400;
+      if (interval > 1) return Math.floor(interval) + ' days ago';
+      interval = seconds / 3600;
+      if (interval > 1) return Math.floor(interval) + ' hours ago';
+      interval = seconds / 60;
+      if (interval > 1) return Math.floor(interval) + ' mins ago';
+      return Math.floor(seconds) + ' seconds ago';
+    };
+
+    recentActivityData = recentAuditLogs.map((log) => {
+      const payload = log.description || {};
+      const entityTypeLower = log.entityType?.toLowerCase() || 'item';
+      const entityName = payload.title || payload.name || entityTypeLower;
+      const actionVerb = log.action?.toLowerCase() || 'updated';
+      const action = `${actionVerb}d ${entityTypeLower} "${entityName}"`;
+      return {
+        id: log.id,
+        user: log.user
+          ? `${log.user.firstName}${log.user.lastName ? ` ${log.user.lastName}` : ''}`.trim()
+          : 'Unknown',
+        action,
+        timestamp: timeAgo(log.createdAt),
+      };
+    });
 
     const computeTrend = (curr: number, prev: number, label: string) => {
       const diff = curr - prev;

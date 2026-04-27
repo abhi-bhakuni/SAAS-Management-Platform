@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, Repository } from 'typeorm';
 import { Request } from 'express';
@@ -8,7 +8,6 @@ import { CreateActivityDto } from '../dtos/create-activity.dto';
 
 @Injectable()
 export class ActivityService {
-  private readonly logger = new Logger(ActivityService.name);
   constructor(
     @InjectRepository(AuditLog)
     private auditLogRepository: Repository<AuditLog>,
@@ -31,6 +30,7 @@ export class ActivityService {
 
     const auditLog = this.auditLogRepository.create({
       userId: userId ?? undefined,
+      projectId: createActivityDto.projectId ?? undefined,
       action: createActivityDto.action,
       entityType: createActivityDto.entityType,
       entityId: createActivityDto.entityId,
@@ -42,26 +42,42 @@ export class ActivityService {
     return this.auditLogRepository.save(auditLog);
   }
 
-  async getActivityForOrg(orgId: string) {
-    // Get users in the org
-    const users = await this.userRepository
-      .createQueryBuilder('user')
-      .leftJoin('user.memberships', 'membership')
-      .where('membership.organizationId = :orgId', { orgId })
-      .select(['user.id'])
-      .getMany();
-
-    const userIds = users.map(u => u.id);
-
-    // Get audit logs for those users
-    const auditLogs = await this.auditLogRepository
+  async getActivityForOrg(orgId: string, projectId?: string) {
+    const query = this.auditLogRepository
       .createQueryBuilder('audit')
       .leftJoin('audit.user', 'user')
       .addSelect(['user.firstName', 'user.lastName', 'user.email'])
-      .where('audit.userId IN (:...userIds)', { userIds })
       .orderBy('audit.createdAt', 'DESC')
-      .limit(100) // Limit to recent 100
-      .getMany();
+      .limit(100);
+
+    if (projectId) {
+      // Project-scoped: logs tagged with this project OR the project's own entity log
+      query.where(
+        '(audit.projectId = :projectId) OR (audit.entityType = :projectType AND audit.entityId = :projectId)',
+        { projectId, projectType: 'Project' },
+      );
+    } else {
+      // Org-scoped: current-member logs OR org-tagged logs (e.g. removed members)
+      const users = await this.userRepository
+        .createQueryBuilder('user')
+        .leftJoin('user.memberships', 'membership')
+        .where('membership.organizationId = :orgId', { orgId })
+        .select(['user.id'])
+        .getMany();
+
+      const userIds = users.map(u => u.id);
+
+      if (userIds.length > 0) {
+        query.where(
+          '(audit.userId IN (:...userIds)) OR (audit.organizationId = :orgId)',
+          { userIds, orgId },
+        );
+      } else {
+        query.where('audit.organizationId = :orgId', { orgId });
+      }
+    }
+
+    const auditLogs = await query.getMany();
 
     // Transform to activity format
     return auditLogs.map(log => {
@@ -71,6 +87,8 @@ export class ActivityService {
 
       if (entityTypeLower === 'userinvite') {
         entityName = `${payload.firstName}${payload.lastName ? ' ' + payload.lastName : ''}` || 'New Member';
+      } else if (entityTypeLower === 'member') {
+        entityName = `${payload.firstName}${payload.lastName ? ' ' + payload.lastName : ''}` || payload.email || 'Member';
       } else if (entityTypeLower === 'project') {
         entityName = payload.name || 'Project';
       } else if (entityTypeLower === 'user') {
@@ -98,6 +116,7 @@ export class ActivityService {
   private mapActionToType(log: AuditLog): string {
     const entity = log.entityType.toLowerCase();
     if (entity === 'userinvite') return 'userinvite_accepted';
+    if (entity === 'member' && log.action === 'DELETE') return 'member_removed';
     switch (log.action) {
       case 'CREATE': return `${entity}_created`;
       case 'UPDATE':
@@ -112,6 +131,9 @@ export class ActivityService {
   private generateDescription(log: AuditLog): string {
     let entity = log.entityType.toLowerCase();
     if (entity === 'userinvite') return 'joined the workspace via invite';
+    if (entity === 'member' && log.action === 'DELETE') {
+      return `removed from the workspace`;
+    }
     if (entity === 'taskstatus') entity = 'task status';
 
     switch (log.action) {
