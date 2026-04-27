@@ -140,10 +140,12 @@ export class OrganizationInvitesService {
     filter?: ListInvitesDto,
   ): Promise<{
     data: InviteResponseDto[];
-    total: number;
-    page: number;
-    limit: number;
-    pages: number;
+    _metadata: {
+      total: number;
+      page: number;
+      limit: number;
+      pages: number;
+    }
   }> {
     const page = filter?.page || 1;
     const limit = filter?.limit || 20;
@@ -169,11 +171,31 @@ export class OrganizationInvitesService {
 
     return {
       data,
-      total,
-      page,
-      limit,
-      pages: Math.ceil(total / limit),
+      _metadata: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit),
+      }
     };
+  }
+
+  /**
+   * Get invite by ID
+   */
+  async getInvite(inviteId: string) {
+    const invite = await this.inviteRepository.findOne({
+      where: {
+        inviteToken: inviteId,
+      },
+      relations: ['invitedBy'],
+    });
+
+    if (!invite) {
+      throw new BadRequestException('Invite not found');
+    }
+
+    return this.mapToResponseDto(invite, invite.invitedBy);
   }
 
   /**
@@ -203,15 +225,15 @@ export class OrganizationInvitesService {
     let user = await this.usersService.findByEmail(invite.email);
 
     if (!user) {
-      // Create new user (WITHOUT organizationId - no direct org assignment)
+      // Create user account only. Workspace linkage is handled exclusively via memberships.
       const createUserDto: any = {
         email: invite.email,
         firstName: acceptInviteDto.firstName,
         lastName: acceptInviteDto.lastName,
         password: acceptInviteDto.password,
         role: 'member', // Default to member role
-        // NO organizationId - users now join through memberships
       };
+      delete createUserDto.organizationId;
 
       try {
         user = await this.usersService.create(createUserDto) as any;
@@ -233,14 +255,12 @@ export class OrganizationInvitesService {
     }
 
     // Add user to organization via membership
-    // Map invite role (UserRole) to org role (OrganizationRole)
-    const orgRole = invite.role === 'admin' ? 'ADMIN' : 'MEMBER';
 
     try {
       await this.userOrgService.addUserToOrganization(
         user.id,
         invite.organizationId,
-        orgRole as any,
+        invite.role,
       );
     } catch (error) {
       if (error instanceof ConflictException) {
@@ -361,6 +381,19 @@ export class OrganizationInvitesService {
     this.logger.log(`Invite ${inviteId} resent to ${invite.email}`);
 
     return this.mapToResponseDto(updatedInvite, invite.invitedBy);
+  }
+
+  /**
+   * Mark invite as ACCEPTED after the invited user successfully signs in
+   */
+  async markInviteAccepted(inviteToken: string): Promise<void> {
+    const invite = await this.inviteRepository.findOne({
+      where: { inviteToken },
+    });
+    if (invite && invite.status === 'PENDING') {
+      invite.accept();
+      await this.inviteRepository.save(invite);
+    }
   }
 
   /**

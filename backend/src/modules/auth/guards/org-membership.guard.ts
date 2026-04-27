@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { UserRole } from '../../../common/enums';
+import { OrganizationRole } from '../../../common/enums';
 
 @Injectable()
 export class OrgMembershipGuard implements CanActivate {
@@ -16,7 +16,7 @@ export class OrgMembershipGuard implements CanActivate {
     const user = request.user;
 
     // System ADMIN always has access to any organization
-    if (user.role === UserRole.ADMIN) {
+    if (user.role === OrganizationRole.ADMIN) {
       return true;
     }
 

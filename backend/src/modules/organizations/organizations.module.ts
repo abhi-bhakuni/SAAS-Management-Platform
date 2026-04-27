@@ -14,6 +14,7 @@ import { Project } from '../projects/entities/project.entity';
 import { Task } from '../projects/entities/task.entity';
 import { UsersModule } from '../users/users.module';
 import { EmailModule } from '../email/email.module';
+import { AuditLog } from '../../common/entities/audit-log.entity';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { EmailModule } from '../email/email.module';
       UserOrganizationMembership,
       Project,
       Task,
+      AuditLog,
     ]),
     forwardRef(() => UsersModule),
     EmailModule,

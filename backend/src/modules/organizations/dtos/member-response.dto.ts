@@ -1,4 +1,4 @@
-import { OrganizationRole } from '../../users/entities/user-organization-membership.entity';
+import { OrganizationRole } from '../../../common/enums';
 
 export class UserInfoDto {
   id: string;

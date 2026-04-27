@@ -5,10 +5,9 @@ import {
   MinLength,
   MaxLength,
   IsOptional,
-  Matches,
   IsEnum,
 } from 'class-validator';
-import { UserRole } from '../../../common/enums';
+import { OrganizationRole } from '../../../common/enums';
 
 export class CreateUserDto {
   @IsEmail()
@@ -28,16 +27,11 @@ export class CreateUserDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(8)
-  @MaxLength(50)
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/, {
-    message:
-      'Password must contain uppercase, lowercase, number, and special character',
-  })
   password: string;
 
-  @IsEnum(UserRole)
+  @IsEnum(OrganizationRole)
   @IsOptional()
-  role: UserRole = UserRole.MEMBER;
+  role: OrganizationRole = OrganizationRole.MEMBER;
 
   @IsOptional()
   organizationId?: string;

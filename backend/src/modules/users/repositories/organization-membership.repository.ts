@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
-import { UserOrganizationMembership, OrganizationRole } from '../entities/user-organization-membership.entity';
+import { UserOrganizationMembership } from '../entities/user-organization-membership.entity';
+import { OrganizationRole } from '../../../common/enums';
 
 @Injectable()
 export class OrganizationMembershipRepository extends Repository<UserOrganizationMembership> {
@@ -122,8 +123,7 @@ export class OrganizationMembershipRepository extends Repository<UserOrganizatio
   }
 
   /**
-   * Check if user has at least role in organization
-   * Role hierarchy: OWNER > ADMIN > MEMBER
+   * Role hierarchy: ADMIN > MANAGER > MEMBER
    */
   async hasAtLeastRole(
     userId: string,
@@ -138,8 +138,8 @@ export class OrganizationMembershipRepository extends Repository<UserOrganizatio
     if (!membership) return false;
 
     const roleHierarchy = {
-      [OrganizationRole.OWNER]: 3,
-      [OrganizationRole.ADMIN]: 2,
+      [OrganizationRole.ADMIN]: 3,
+      [OrganizationRole.MANAGER]: 2,
       [OrganizationRole.MEMBER]: 1,
     };
 

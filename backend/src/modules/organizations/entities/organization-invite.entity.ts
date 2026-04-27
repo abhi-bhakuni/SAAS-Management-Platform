@@ -11,7 +11,7 @@ import {
 } from 'typeorm';
 import { Organization } from './organization.entity';
 import { User } from '../../users/entities/user.entity';
-import { UserRole } from '../../../common/enums';
+import { OrganizationRole } from '../../../common/enums';
 
 @Entity('organization_invites')
 @Index(['email', 'organizationId'])
@@ -20,34 +20,34 @@ import { UserRole } from '../../../common/enums';
 @Unique(['inviteToken'])
 export class OrganizationInvite {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ type: 'uuid' })
-  organizationId: string;
+  organizationId!: string;
 
   @ManyToOne(() => Organization, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'organizationId' })
-  organization: Organization;
+  organization!: Organization;
 
   @Column({ type: 'varchar', length: 255 })
-  email: string;
+  email!: string;
 
   @Column({ type: 'varchar', length: 255 })
-  inviteToken: string;
+  inviteToken!: string;
 
   @Column({
-    type: 'enum',
-    enum: UserRole,
-    default: UserRole.MEMBER,
+    type: 'varchar',
+    length: 50,
+    default: OrganizationRole.MEMBER,
   })
-  role: UserRole;
+  role!: OrganizationRole;
 
   @Column({
     type: 'varchar',
     length: 50,
     default: 'PENDING',
   })
-  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED';
+  status!: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED';
 
   @Column({ type: 'uuid', nullable: true })
   invitedByUserId?: string;
@@ -60,13 +60,13 @@ export class OrganizationInvite {
   acceptedAt?: Date;
 
   @Column({ type: 'timestamp' })
-  expiresAt: Date;
+  expiresAt!: Date;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 
   /**
    * Check if the invite has expired

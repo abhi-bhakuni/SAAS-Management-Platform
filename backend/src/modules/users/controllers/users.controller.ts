@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { UsersService } from '../services/users.service';
 import { Roles, CurrentUser } from '../../auth/decorators/index';
-import { UserRole } from '../../../common/enums';
+import { OrganizationRole } from '../../../common/enums';
 import { CreateUserDto } from '../dtos/create-user.dto';
 import { UpdateUserDto } from '../dtos/update-user.dto';
 
@@ -21,7 +21,7 @@ export class UsersController {
   /**
    * GET /users - List all users (admin only)
    */
-  @Roles(UserRole.ADMIN)
+  @Roles(OrganizationRole.ADMIN)
   @Get()
   async findAll(): Promise<any> {
     return this.usersService.findAll();
@@ -38,7 +38,7 @@ export class UsersController {
   /**
    * POST /users - Create user (admin only)
    */
-  @Roles(UserRole.ADMIN)
+  @Roles(OrganizationRole.ADMIN)
   @Post()
   async create(@Body() createUserDto: CreateUserDto): Promise<any> {
     return this.usersService.create(createUserDto);
@@ -54,7 +54,7 @@ export class UsersController {
     @CurrentUser() user: any,
   ): Promise<any> {
     // Allow admin to update anyone, or user to update themselves
-    if (user.role !== UserRole.ADMIN && user.id !== id) {
+    if (user.role !== OrganizationRole.ADMIN && user.id !== id) {
       throw new ForbiddenException('You can only update your own profile');
     }
     return this.usersService.update(id, updateUserDto);
@@ -63,7 +63,7 @@ export class UsersController {
   /**
    * DELETE /users/:id - Delete user (admin only)
    */
-  @Roles(UserRole.ADMIN)
+  @Roles(OrganizationRole.ADMIN)
   @Delete(':id')
   async remove(@Param('id') id: string): Promise<any> {
     await this.usersService.remove(id);

@@ -64,6 +64,10 @@ export const authApi = {
     const response = await api.post('/auth/register', data);
     return response.data;
   },
+  acceptInvite: async (data: { token: string; firstName: string; lastName: string; password: string }) => {
+    const response = await api.post('/auth/accept-invite', data);
+    return response.data;
+  },
   getCurrentUser: async () => {
     if (isSandboxMode()) return { id: 'guest', name: 'Guest User', role: 'GUEST' };
     const response = await api.get('/auth/me');
@@ -99,6 +103,35 @@ export const organizationApi = {
     const response = await api.get('/organizations/members', {
       params: { page, limit },
     });
+    return response.data;
+  },
+  createInvite: async (
+    data: { email: string; role?: 'ADMIN' | 'MANAGER' | 'MEMBER' },
+  ) => {
+    if (isSandboxMode()) throw new Error('Modifications restricted in Sandbox.');
+    const response = await api.post('/organizations/invites', data);
+    return response.data;
+  },
+  getInvites: async (
+    params?: { status?: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED'; page?: number; limit?: number },
+  ) => {
+    if (isSandboxMode()) return { data: [], total: 0, page: 1, limit: params?.limit ?? 20, pages: 0 };
+    const response = await api.get('/organizations/invites', { params });
+    return response.data;
+  },
+  revokeInvite: async (inviteId: string) => {
+    if (isSandboxMode()) throw new Error('Modifications restricted in Sandbox.');
+    const response = await api.delete(`/organizations/invites/${inviteId}`);
+    return response.data;
+  },
+  updateMemberRole: async (userId: string, role: 'ADMIN' | 'MANAGER' | 'MEMBER') => {
+    if (isSandboxMode()) throw new Error('Modifications restricted in Sandbox.');
+    const response = await api.put(`/organizations/members/${userId}`, { role });
+    return response.data;
+  },
+  removeMember: async (userId: string) => {
+    if (isSandboxMode()) throw new Error('Modifications restricted in Sandbox.');
+    const response = await api.delete(`/organizations/members/${userId}`);
     return response.data;
   },
 };

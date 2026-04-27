@@ -107,10 +107,15 @@ export class AuthController {
   @Public()
   @Post('accept-invite')
   @HttpCode(HttpStatus.CREATED)
-  async acceptInvite(@Body() acceptInviteDto: AcceptInviteDto): Promise<any> {
-    return this.invitesService.acceptInvite(
+  async acceptInvite(@Body() acceptInviteDto: AcceptInviteDto): Promise<AuthResponseDto> {
+    const inviteResult = await this.invitesService.acceptInvite(
       acceptInviteDto.token,
       acceptInviteDto,
+    );
+
+    return this.authService.createAuthResponseForOrg(
+      inviteResult.user,
+      inviteResult.invite.organizationId,
     );
   }
 }

@@ -2,88 +2,93 @@
   <head>
     <style>
       body {
-        font-family: Arial, sans-serif;
-        background-color: #f4f4f4;
         margin: 0;
         padding: 0;
+        background-color: #f4f4f5;
+        font-family: Arial, sans-serif;
+        color: #27272a;
       }
       .container {
-        max-width: 600px;
-        margin: 20px auto;
+        max-width: 620px;
+        margin: 24px auto;
         background-color: #ffffff;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        padding: 40px;
+        border: 1px solid #e4e4e7;
+        border-radius: 12px;
+        padding: 36px;
       }
       h1 {
-        color: #333;
-        margin-bottom: 20px;
+        margin: 0 0 16px;
+        color: #09090b;
+        font-size: 28px;
+        line-height: 1.25;
       }
       p {
-        color: #666;
-        line-height: 1.6;
-        margin-bottom: 15px;
+        margin: 0 0 14px;
+        font-size: 15px;
+        line-height: 1.65;
+        color: #3f3f46;
+      }
+      .cta-wrap {
+        margin: 26px 0;
       }
       .cta-button {
         display: inline-block;
-        background-color: #2563eb;
-        color: #ffffff;
-        padding: 12px 30px;
+        padding: 12px 24px;
         text-decoration: none;
-        border-radius: 4px;
-        margin: 20px 0;
-        font-weight: bold;
+        background-color: #111827;
+        color: #ffffff !important;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 14px;
       }
-      .cta-button:hover {
-        background-color: #1d4ed8;
+      .hint-box {
+        margin-top: 18px;
+        padding: 12px 14px;
+        border-radius: 8px;
+        border: 1px solid #e4e4e7;
+        background-color: #fafafa;
+      }
+      .mono {
+        font-family: Consolas, "Liberation Mono", Menlo, monospace;
+        word-break: break-all;
+        color: #18181b;
+        font-size: 13px;
       }
       .footer {
-        color: #999;
+        margin-top: 28px;
+        padding-top: 16px;
+        border-top: 1px solid #f1f5f9;
         font-size: 12px;
-        margin-top: 40px;
-        padding-top: 20px;
-        border-top: 1px solid #eee;
-      }
-      .token-section {
-        background-color: #f9fafb;
-        padding: 15px;
-        border-radius: 4px;
-        margin: 20px 0;
-        font-family: monospace;
-        word-break: break-all;
+        color: #71717a;
       }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>Welcome to {{organizationName}}!</h1>
+      <h1>You are invited to join {{organizationName}}</h1>
 
-      <p>Hi there,</p>
-
+      <p>Hello,</p>
       <p>
-        <strong>{{inviterName}}</strong> has invited you to join
-        <strong>{{organizationName}}</strong> on our SAAS Management Platform.
+        <strong>{{inviterName}}</strong> invited you to collaborate in
+        <strong>{{organizationName}}</strong>.
+      </p>
+      <p>
+        Click the button below to open the signup page with your invite pre-attached.
       </p>
 
-      <p>Click the button below to accept the invitation and create your account:</p>
-
-      <a href="{{acceptInviteUrl}}" class="cta-button">Accept Invitation</a>
-
-      <p>Or use this token if needed:</p>
-      <div class="token-section">
-        {{inviteToken}}
+      <div class="cta-wrap">
+        <a href="{{signupInviteUrl}}" class="cta-button">Sign up and join workspace</a>
       </div>
 
-      <p>
-        This invitation will expire in 14 days. If you don't want to join {{organizationName}},
-        you can ignore this email.
-      </p>
+      <p>This invite expires in 14 days. If this was unexpected, you can safely ignore this email.</p>
+
+      <div class="hint-box">
+        <p style="margin: 0 0 6px;"><strong>Invite ID</strong></p>
+        <div class="mono">{{inviteToken}}</div>
+      </div>
 
       <div class="footer">
-        <p>
-          © 2024 SAAS Management Platform. All rights reserved.<br>
-          If you have any questions, please contact support.
-        </p>
+        SAAS Management Platform
       </div>
     </div>
   </body>

@@ -1,18 +1,9 @@
 /**
- * User Roles
- */
-export enum UserRole {
-  ADMIN = 'admin',
-  MANAGER = 'manager',
-  MEMBER = 'member',
-}
-
-/**
- * Organization-Specific Roles (per-workspace)
+ * Organization Roles (used both globally on User and per-workspace on memberships)
  */
 export enum OrganizationRole {
-  OWNER = 'OWNER',
   ADMIN = 'ADMIN',
+  MANAGER = 'MANAGER',
   MEMBER = 'MEMBER',
 }
 

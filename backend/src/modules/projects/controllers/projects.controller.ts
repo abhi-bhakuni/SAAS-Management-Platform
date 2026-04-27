@@ -17,8 +17,7 @@ import { OrgMembershipGuard } from '../../auth/guards/org-membership.guard';
 import { OrgRoleGuard } from '../../auth/guards/org-role.guard';
 import { OrgRoles, CurrentUser } from '../../auth/decorators';
 import { CreateProjectDto, UpdateProjectDto } from '../dtos';
-import { OrganizationRole } from '../../users/entities/user-organization-membership.entity';
-import { UserRole } from '../../../common/enums';
+import { OrganizationRole } from '../../../common/enums';
 
 @Controller('projects')
 @UseGuards(JwtAuthGuard, OrgMembershipGuard)
@@ -110,7 +109,7 @@ export class ProjectsController {
    * System ADMINs bypass this check.
    */
   private validateWorkspace(orgId: string, user: any) {
-    if (user.role !== UserRole.ADMIN && orgId !== user.selectedOrgId) {
+    if (user.role !== OrganizationRole.ADMIN && orgId !== user.selectedOrgId) {
       throw new ForbiddenException(
         'Workspace mismatch: cannot access a different organization than your current workspace',
       );

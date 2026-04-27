@@ -319,35 +319,39 @@ export function ProjectDetails() {
               </IconButton>
             </PremiumTooltip>
             <PremiumTooltip title="Delete Project" color="#ef4444">
-              <IconButton 
+              <IconButton
                 onClick={() => setIsDeleteProjectModalOpen(true)}
-                sx={{ 
-                  borderRadius: '8px', 
+                disabled={user?.orgRole === 'MEMBER'}
+                sx={{
+                  borderRadius: '8px',
                   backgroundColor: 'rgba(255, 255, 255, 0.03)',
                   border: '1px solid',
                   borderColor: 'rgba(239, 68, 68, 0.1)',
                   color: '#ef4444',
                   mr: 1,
-                  '&:hover': { backgroundColor: 'rgba(239, 68, 68, 0.1)' }
+                  '&:hover': { backgroundColor: 'rgba(239, 68, 68, 0.1)' },
+                  '&.Mui-disabled': { color: 'rgba(239, 68, 68, 0.3)', borderColor: 'rgba(239, 68, 68, 0.05)' }
                 }}
               >
                 <DeleteOutlineIcon sx={{ fontSize: 20 }} />
               </IconButton>
             </PremiumTooltip>
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               disableElevation
               startIcon={<AddIcon />}
               onClick={handleOpenAddModal}
-              sx={{ 
-                borderRadius: '6px', 
-                textTransform: 'none', 
+              disabled={user?.orgRole === 'MEMBER'}
+              sx={{
+                borderRadius: '6px',
+                textTransform: 'none',
                 fontWeight: 600,
                 fontSize: '0.85rem',
                 backgroundColor: '#FFFFFF',
                 color: '#000000',
                 px: 2,
-                '&:hover': { backgroundColor: '#E2E2E2' }
+                '&:hover': { backgroundColor: '#E2E2E2' },
+                '&.Mui-disabled': { backgroundColor: '#2A2A2E', color: '#71717A' }
               }}
             >
               Add Task
@@ -423,7 +427,7 @@ export function ProjectDetails() {
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 4, maxWidth: 320, lineHeight: 1.6 }}>
                   You haven't added any tasks yet. Launch your first task to start tracking progress.
                 </Typography>
-                <Button onClick={handleOpenAddModal} variant="outlined" startIcon={<AddIcon />} sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700, borderColor: 'rgba(255, 255, 255, 0.1)', color: '#FFFFFF', px: 3 }}>
+                <Button onClick={handleOpenAddModal} variant="outlined" startIcon={<AddIcon />} disabled={user?.orgRole === 'MEMBER'} sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700, borderColor: 'rgba(255, 255, 255, 0.1)', color: '#FFFFFF', px: 3 }}>
                   Create Task
                 </Button>
               </Box>
@@ -632,7 +636,7 @@ export function ProjectDetails() {
               justifyContent: 'flex-end',
               gap: 2
             }}>
-              <Button onClick={handleDeleteTask} size="small" sx={{ textTransform: 'none', color: 'text.disabled', '&:hover': { color: 'error.main' } }}>Delete Task</Button>
+              <Button onClick={handleDeleteTask} size="small" disabled={user?.orgRole === 'MEMBER'} sx={{ textTransform: 'none', color: 'text.disabled', '&:hover': { color: 'error.main' } }}>Delete Task</Button>
               <Button onClick={handleUpdateTask} size="small" variant="contained" disableElevation sx={{ borderRadius: '6px', textTransform: 'none', px: 3, backgroundColor: '#FFFFFF', color: '#000000', fontWeight: 700 }}>Save Changes</Button>
             </Box>
           )}

@@ -10,53 +10,49 @@ import {
 } from 'typeorm';
 import { User } from './user.entity';
 import { Organization } from '../../organizations/entities/organization.entity';
+import { OrganizationRole } from '../../../common/enums';
 
-export enum OrganizationRole {
-  OWNER = 'OWNER',
-  ADMIN = 'ADMIN',
-  MEMBER = 'MEMBER',
-}
+export { OrganizationRole };
 
 @Entity('user_organization_memberships')
 @Index(['organizationId', 'role'])
 @Index(['userId', 'organizationId'])
 export class UserOrganizationMembership {
   @PrimaryColumn('uuid')
-  userId: string;
+  userId!: string;
 
   @PrimaryColumn('uuid')
-  organizationId: string;
+  organizationId!: string;
 
   @ManyToOne(() => User, (user) => user.memberships, {
     onDelete: 'CASCADE',
     eager: false,
   })
   @JoinColumn({ name: 'userId' })
-  user: User;
+  user!: User;
 
   @ManyToOne(() => Organization, (org) => org.memberships, {
     onDelete: 'CASCADE',
     eager: false,
   })
   @JoinColumn({ name: 'organizationId' })
-  organization: Organization;
+  organization!: Organization;
 
   @Column({ type: 'varchar', length: 50 })
-  role: OrganizationRole;
+  role!: OrganizationRole;
 
   @CreateDateColumn()
-  joinedAt: Date;
+  joinedAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
-
-  // Helper methods
-  isOwner(): boolean {
-    return this.role === OrganizationRole.OWNER;
-  }
+  updatedAt!: Date;
 
   isAdmin(): boolean {
     return this.role === OrganizationRole.ADMIN;
+  }
+
+  isManager(): boolean {
+    return this.role === OrganizationRole.MANAGER;
   }
 
   isMember(): boolean {
@@ -64,17 +60,17 @@ export class UserOrganizationMembership {
   }
 
   canManageMembers(): boolean {
-    return this.role === OrganizationRole.OWNER || this.role === OrganizationRole.ADMIN;
+    return this.role === OrganizationRole.ADMIN || this.role === OrganizationRole.MANAGER;
   }
 
   /**
    * Check if this membership role is higher or equal to another role
-   * Hierarchy: OWNER > ADMIN > MEMBER
+   * Hierarchy: ADMIN > MANAGER > MEMBER
    */
   hasAtLeastRole(role: OrganizationRole): boolean {
     const hierarchy = {
-      [OrganizationRole.OWNER]: 3,
-      [OrganizationRole.ADMIN]: 2,
+      [OrganizationRole.ADMIN]: 3,
+      [OrganizationRole.MANAGER]: 2,
       [OrganizationRole.MEMBER]: 1,
     };
     return hierarchy[this.role] >= hierarchy[role];

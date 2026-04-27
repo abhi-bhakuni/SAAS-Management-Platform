@@ -4,8 +4,8 @@ import { Organization } from '../../modules/organizations/entities/organization.
 import { Subscription } from '../../modules/subscriptions/entities/subscription.entity';
 import { SubscriptionPlan } from '../../modules/subscriptions/entities/subscription-plan.entity';
 import { SubscriptionPlansService } from '../../modules/subscriptions/services/subscription-plans.service';
-import { UserOrganizationMembership, OrganizationRole } from '../../modules/users/entities/user-organization-membership.entity';
-import { UserRole, OrganizationStatus, SubscriptionStatus } from '../../common/enums';
+import { UserOrganizationMembership } from '../../modules/users/entities/user-organization-membership.entity';
+import { OrganizationRole, OrganizationStatus, SubscriptionStatus } from '../../common/enums';
 import * as bcrypt from 'bcrypt';
 
 async function seed() {
@@ -50,7 +50,7 @@ async function seed() {
         firstName: 'John',
         lastName: 'Doe',
         password: hashedPassword,
-        role: UserRole.ADMIN,
+        role: OrganizationRole.ADMIN,
         emailVerified: true,
         isActive: true,
       }),
@@ -62,7 +62,7 @@ async function seed() {
         firstName: 'Jane',
         lastName: 'Smith',
         password: hashedPassword,
-        role: UserRole.MANAGER,
+        role: OrganizationRole.MANAGER,
         emailVerified: true,
         isActive: true,
       }),
@@ -74,7 +74,7 @@ async function seed() {
         firstName: 'Bob',
         lastName: 'Johnson',
         password: hashedPassword,
-        role: UserRole.ADMIN,
+        role: OrganizationRole.ADMIN,
         emailVerified: true,
         isActive: true,
       }),
@@ -89,7 +89,7 @@ async function seed() {
       membershipRepo.create({
         userId: user1.id,
         organizationId: org1.id,
-        role: OrganizationRole.OWNER,
+        role: OrganizationRole.ADMIN,
       }),
     );
 
@@ -105,7 +105,7 @@ async function seed() {
       membershipRepo.create({
         userId: user3.id,
         organizationId: org2.id,
-        role: OrganizationRole.OWNER,
+        role: OrganizationRole.ADMIN,
       }),
     );
 

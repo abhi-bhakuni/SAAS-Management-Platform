@@ -1,4 +1,5 @@
 import { useState, useEffect, type SyntheticEvent } from 'react';
+import { useLocation } from 'react-router-dom';
 import { 
   Box, 
   Typography, 
@@ -16,7 +17,13 @@ import {
   TableHead, 
   TableRow,
   Chip,
-  LinearProgress
+  LinearProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  MenuItem,
+  Select,
 } from '@mui/material';
 import { Sidebar } from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
@@ -40,15 +47,34 @@ type Member = {
   };
 };
 
+type Invite = {
+  id: string;
+  email: string;
+  role: 'ADMIN' | 'MANAGER' | 'MEMBER';
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED';
+  expiresAt: string;
+  createdAt: string;
+};
+
 export function Settings() {
   const { user, updateUser } = useAuth();
   const { showToast } = useToast();
-  const [activeTab, setActiveTab] = useState(0);
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState<number>((location.state as any)?.tab ?? 0);
   const [fullName, setFullName] = useState('');
   const [bio, setBio] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<Invite[]>([]);
   const [isMembersLoading, setIsMembersLoading] = useState(false);
+  const [isInvitesLoading, setIsInvitesLoading] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'MEMBER' | 'MANAGER' | 'ADMIN'>('MEMBER');
+  const [isSendingInvite, setIsSendingInvite] = useState(false);
+  const [revokingInviteId, setRevokingInviteId] = useState<string | null>(null);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [updatingRoleMemberId, setUpdatingRoleMemberId] = useState<string | null>(null);
   const [projectCount, setProjectCount] = useState<number | null>(null);
   const [subscription, setSubscription] = useState<any | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<any>(null);
@@ -58,31 +84,49 @@ export function Settings() {
   };
 
   useEffect(() => {
-    const fetchMembers = async () => {
+    const fetchMembersAndInvites = async () => {
       if (!user?.selectedOrgId) {
         setMembers([]);
+        setPendingInvites([]);
         setProjectCount(null);
         return;
       }
 
       setIsMembersLoading(true);
-      try {
-        const [membersResponse, dashboardResponse] = await Promise.all([
-          organizationApi.getMembers(1, 50),
-          dashboardApi.getStats(),
-        ]);
-        setMembers(membersResponse.data ?? []);
-        setProjectCount(dashboardResponse?.stats?.totalProjects ?? null);
-      } catch (error) {
-        console.error('Failed to load team members or dashboard data', error);
+      setIsInvitesLoading(true);
+      const [membersResult, dashboardResult, invitesResult] = await Promise.allSettled([
+        organizationApi.getMembers(1, 50),
+        dashboardApi.getStats(),
+        organizationApi.getInvites({ status: 'PENDING', page: 1, limit: 50 }),
+      ]);
+
+      if (membersResult.status === 'fulfilled') {
+        setMembers(membersResult.value?.data ?? []);
+      } else {
+        console.error('Failed to load team members', membersResult.reason);
         setMembers([]);
-        setProjectCount(null);
-      } finally {
-        setIsMembersLoading(false);
       }
+
+      if (dashboardResult.status === 'fulfilled') {
+        setProjectCount(dashboardResult.value?.stats?.totalProjects ?? null);
+      } else {
+        console.error('Failed to load dashboard data', dashboardResult.reason);
+        setProjectCount(null);
+      }
+
+      if (invitesResult.status === 'fulfilled') {
+        setPendingInvites(invitesResult.value?.data ?? []);
+      } else {
+        // Invite APIs may be restricted to admins; this should not block member list rendering.
+        console.warn('Failed to load pending invites', invitesResult.reason);
+        setPendingInvites([]);
+      }
+
+      setIsMembersLoading(false);
+      setIsInvitesLoading(false);
     };
 
-    fetchMembers();
+    fetchMembersAndInvites();
   }, [user?.selectedOrgId]);
 
   useEffect(() => {
@@ -152,6 +196,114 @@ export function Settings() {
     }
   };
 
+  const isInviteEmailValid = /\S+@\S+\.\S+/.test(inviteEmail.trim());
+
+  const handleOpenInviteModal = () => {
+    setInviteEmail('');
+    setInviteRole('MEMBER');
+    setIsInviteModalOpen(true);
+  };
+
+  const handleCloseInviteModal = () => {
+    if (isSendingInvite) return;
+    setIsInviteModalOpen(false);
+  };
+
+  const loadPendingInvites = async () => {
+    if (!user?.selectedOrgId) return;
+    setIsInvitesLoading(true);
+    try {
+      const invitesResponse = await organizationApi.getInvites({
+        status: 'PENDING',
+        page: 1,
+        limit: 50,
+      });
+      setPendingInvites(invitesResponse?.data ?? []);
+    } catch (error) {
+      console.error('Failed to load pending invites', error);
+      setPendingInvites([]);
+    } finally {
+      setIsInvitesLoading(false);
+    }
+  };
+
+  const handleInviteMember = async () => {
+    if (!user?.selectedOrgId) {
+      showToast('Select a workspace before inviting members.', 'warning');
+      return;
+    }
+    if (!isInviteEmailValid) {
+      showToast('Enter a valid email address.', 'warning');
+      return;
+    }
+
+    setIsSendingInvite(true);
+    try {
+      await organizationApi.createInvite({
+        email: inviteEmail.trim().toLowerCase(),
+        role: inviteRole,
+      });
+      showToast('Invitation sent successfully.', 'success');
+      setIsInviteModalOpen(false);
+      await loadPendingInvites();
+    } catch (error) {
+      console.error('Failed to invite member', error);
+      showToast('Failed to send invitation. Please try again.', 'error');
+    } finally {
+      setIsSendingInvite(false);
+    }
+  };
+
+  const handleChangeRole = async (userId: string, role: 'ADMIN' | 'MANAGER' | 'MEMBER') => {
+    setUpdatingRoleMemberId(userId);
+    try {
+      await organizationApi.updateMemberRole(userId, role);
+      setMembers((current) =>
+        current.map((m) => (m.userId === userId ? { ...m, role } : m)),
+      );
+      showToast('Role updated.', 'success');
+    } catch (error) {
+      console.error('Failed to update role', error);
+      showToast('Failed to update role. Please try again.', 'error');
+    } finally {
+      setUpdatingRoleMemberId(null);
+    }
+  };
+
+  const handleRemoveMember = async (userId: string) => {
+    if (!user?.selectedOrgId) return;
+
+    setRemovingMemberId(userId);
+    try {
+      await organizationApi.removeMember(userId);
+      setMembers((current) => current.filter((m) => m.userId !== userId));
+      showToast('Member removed.', 'success');
+    } catch (error) {
+      console.error('Failed to remove member', error);
+      showToast('Failed to remove member. Please try again.', 'error');
+    } finally {
+      setRemovingMemberId(null);
+    }
+  };
+
+  const handleRevokeInvite = async (inviteId: string) => {
+    if (!user?.selectedOrgId) return;
+
+    setRevokingInviteId(inviteId);
+    try {
+      await organizationApi.revokeInvite(inviteId);
+      setPendingInvites((currentInvites) =>
+        currentInvites.filter((invite) => invite.id !== inviteId),
+      );
+      showToast('Invite revoked.', 'success');
+    } catch (error) {
+      console.error('Failed to revoke invite', error);
+      showToast('Failed to revoke invite. Please try again.', 'error');
+    } finally {
+      setRevokingInviteId(null);
+    }
+  };
+
   const currentPlan = subscription?.subscriptionPlan;
   const currentPlanName = currentPlan?.name ?? 'Free Tier';
   const currentPlanDescription = currentPlan?.description ?? 'Perfect for individual developers and small experiments.';
@@ -173,8 +325,6 @@ export function Settings() {
         <Box sx={{ 
           p: { xs: 3, md: 5 }, 
           pb: 0,
-          borderBottom: '1px solid',
-          borderColor: 'rgba(255, 255, 255, 0.05)',
           backgroundColor: '#0F0F11'
         }}>
           <Typography variant="h4" fontWeight="800" sx={{ letterSpacing: '-0.02em', mb: 1 }}>
@@ -188,6 +338,8 @@ export function Settings() {
             value={activeTab} 
             onChange={handleTabChange}
             sx={{ 
+              borderBottom: '1px solid',
+              borderColor: 'rgba(255, 255, 255, 0.05)',
               '& .MuiTab-root': { 
                 textTransform: 'none', 
                 fontWeight: 600, 
@@ -299,7 +451,15 @@ export function Settings() {
                     <Typography variant="h6" fontWeight="700">Team Members</Typography>
                     <Typography variant="body2" color="text.disabled">Manage who has access to this workspace.</Typography>
                   </Box>
-                  <Button variant="contained" startIcon={<AddIcon />} sx={saveButtonStyle}>Invite Member</Button>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    sx={saveButtonStyle}
+                    onClick={handleOpenInviteModal}
+                    disabled={user?.orgRole !== 'ADMIN'}
+                  >
+                    Invite Member
+                  </Button>
                 </Box>
 
                 <TableContainer sx={{ 
@@ -336,7 +496,26 @@ export function Settings() {
                             </Box>
                           </TableCell>
                           <TableCell sx={cellStyle}>
-                            <Typography variant="body2">{member.role}</Typography>
+                            {user?.orgRole === 'ADMIN' || (user?.orgRole === 'MANAGER' && member.role === 'MEMBER') ? (
+                              <Select
+                                size="small"
+                                value={member.role as 'ADMIN' | 'MANAGER' | 'MEMBER'}
+                                disabled={updatingRoleMemberId === member.userId}
+                                onChange={(e) => handleChangeRole(member.userId, e.target.value as 'ADMIN' | 'MANAGER' | 'MEMBER')}
+                                sx={{
+                                  fontSize: '0.875rem',
+                                  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.08)' },
+                                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' },
+                                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' },
+                                }}
+                              >
+                                {user?.orgRole === 'ADMIN' && <MenuItem value="ADMIN">Admin</MenuItem>}
+                                <MenuItem value="MANAGER">Manager</MenuItem>
+                                <MenuItem value="MEMBER">Member</MenuItem>
+                              </Select>
+                            ) : (
+                              <Typography variant="body2">{member.role}</Typography>
+                            )}
                           </TableCell>
                           <TableCell sx={cellStyle}>
                             <Chip label="Active" size="small" sx={{ 
@@ -346,9 +525,18 @@ export function Settings() {
                               color: '#10B981'
                             }} />
                           </TableCell>
-                          <TableCell sx={cellStyle} align="right">
-                            <Button size="small" sx={{ color: 'text.disabled', textTransform: 'none' }}>Remove</Button>
-                          </TableCell>
+                          {user?.orgRole === 'ADMIN' && (
+                            <TableCell sx={cellStyle} align="right">
+                              <Button
+                                size="small"
+                                sx={{ color: 'text.disabled', textTransform: 'none' }}
+                                onClick={() => handleRemoveMember(member.userId)}
+                                disabled={removingMemberId === member.userId}
+                              >
+                                {removingMemberId === member.userId ? 'Removing…' : 'Remove'}
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))
                     ) : (
@@ -361,6 +549,75 @@ export function Settings() {
                   </TableBody>
                   </Table>
                 </TableContainer>
+
+                {user?.orgRole === 'ADMIN' && <Box sx={{ mt: 4 }}>
+                  <Typography variant="subtitle1" fontWeight="700" mb={2}>
+                    Pending Invitations
+                  </Typography>
+                  <TableContainer
+                    sx={{
+                      borderRadius: '12px',
+                      border: '1px solid rgba(255, 255, 255, 0.05)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.01)',
+                    }}
+                  >
+                    <Table>
+                      <TableHead sx={{ backgroundColor: 'rgba(255, 255, 255, 0.02)' }}>
+                        <TableRow>
+                          <TableCell sx={headerCellStyle}>Email</TableCell>
+                          <TableCell sx={headerCellStyle}>Role</TableCell>
+                          <TableCell sx={headerCellStyle}>Expires</TableCell>
+                          <TableCell sx={headerCellStyle}></TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {isInvitesLoading ? (
+                          <TableRow>
+                            <TableCell colSpan={4} sx={{ py: 3, textAlign: 'center' }}>
+                              <Typography color="text.disabled">Loading invites…</Typography>
+                            </TableCell>
+                          </TableRow>
+                        ) : pendingInvites.length > 0 ? (
+                          pendingInvites.map((invite) => (
+                            <TableRow key={invite.id}>
+                              <TableCell sx={cellStyle}>
+                                <Typography variant="body2">{invite.email}</Typography>
+                              </TableCell>
+                              <TableCell sx={cellStyle}>
+                                <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
+                                  {invite.role}
+                                </Typography>
+                              </TableCell>
+                              <TableCell sx={cellStyle}>
+                                <Typography variant="body2" color="text.secondary">
+                                  {new Date(invite.expiresAt).toLocaleDateString()}
+                                </Typography>
+                              </TableCell>
+                              <TableCell sx={cellStyle} align="right">
+                                <Button
+                                  size="small"
+                                  sx={{ color: 'text.disabled', textTransform: 'none' }}
+                                  onClick={() => handleRevokeInvite(invite.id)}
+                                  disabled={revokingInviteId === invite.id}
+                                >
+                                  {revokingInviteId === invite.id ? 'Revoking…' : 'Revoke'}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={4} sx={{ py: 3, textAlign: 'center' }}>
+                              <Typography color="text.disabled">
+                                No pending invitations.
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Box>}
               </Box>
             )}
 
@@ -451,6 +708,72 @@ export function Settings() {
           </Box>
         </Box>
       </Box>
+
+      <Dialog
+        open={isInviteModalOpen}
+        onClose={handleCloseInviteModal}
+        PaperProps={{
+          elevation: 0,
+          sx: {
+            borderRadius: '12px',
+            width: '100%',
+            maxWidth: 440,
+            backgroundColor: '#18181B',
+            border: '1px solid',
+            borderColor: '#2A2A2E',
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.2rem', color: '#FFFFFF', pb: 1, pt: 3 }}>
+          Invite Member
+        </DialogTitle>
+        <DialogContent sx={{ pb: 3 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Send an invite to join this workspace.
+          </Typography>
+          <TextField
+            autoFocus
+            fullWidth
+            label="Email Address"
+            placeholder="teammate@company.com"
+            value={inviteEmail}
+            onChange={(event) => setInviteEmail(event.target.value)}
+            size="small"
+            sx={{ mb: 2, ...inputStyle }}
+          />
+          <TextField
+            select
+            fullWidth
+            label="Role"
+            value={inviteRole}
+            onChange={(event) => setInviteRole(event.target.value as 'ADMIN' | 'MANAGER' | 'MEMBER')}
+            size="small"
+            sx={inputStyle}
+          >
+            <MenuItem value="MEMBER">Member</MenuItem>
+            <MenuItem value="MANAGER">Manager</MenuItem>
+            <MenuItem value="ADMIN">Admin</MenuItem>
+          </TextField>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
+          <Button
+            onClick={handleCloseInviteModal}
+            disabled={isSendingInvite}
+            sx={{ color: 'text.disabled', textTransform: 'none' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disableElevation
+            onClick={handleInviteMember}
+            disabled={isSendingInvite || !isInviteEmailValid}
+            sx={saveButtonStyle}
+          >
+            {isSendingInvite ? 'Sending…' : 'Send Invite'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

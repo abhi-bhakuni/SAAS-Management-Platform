@@ -13,7 +13,7 @@ import {
 import * as bcrypt from 'bcrypt';
 import { Subscription } from '../../subscriptions/entities/subscription.entity';
 import { AuditLog } from '../../../common/entities/audit-log.entity';
-import { UserRole } from '../../../common/enums';
+import { OrganizationRole } from '../../../common/enums';
 import { UserOrganizationMembership } from './user-organization-membership.entity';
 
 @Entity('users')
@@ -38,8 +38,8 @@ export class User {
   @Column({ type: 'varchar', length: 255, select: false })
   password?: string;
 
-  @Column({ type: 'varchar', length: 50, default: UserRole.MEMBER })
-  role!: UserRole;
+  @Column({ type: 'varchar', length: 50, default: OrganizationRole.MEMBER })
+  role!: OrganizationRole;
 
   @Column({ type: 'boolean', default: false })
   emailVerified!: boolean;

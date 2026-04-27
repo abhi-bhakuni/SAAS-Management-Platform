@@ -10,6 +10,7 @@ import {
 import { Project } from '../../projects/entities/project.entity';
 import { Task } from '../../projects/entities/task.entity';
 import { TaskStatus, ProjectStatus } from '../../../common/enums';
+import { AuditLog } from '../../../common/entities/audit-log.entity';
 
 @Injectable()
 export class OrganizationsService {
@@ -23,6 +24,8 @@ export class OrganizationsService {
     private readonly projectRepository: Repository<Project>,
     @InjectRepository(Task)
     private readonly taskRepository: Repository<Task>,
+    @InjectRepository(AuditLog)
+    private readonly auditLogRepository: Repository<AuditLog>,
   ) {}
 
   async findAll(page = 1, limit = 10) {
@@ -275,17 +278,17 @@ export class OrganizationsService {
       });
 
       
-      // 1 Month Activity for recentActivity
+      // 1 Month Activity for recentActivity (from audit logs)
       const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      const recentTasks = await this.taskRepository.find({
-        where: {
-          projectId: this.getInHelper(projectIds) as any,
-          updatedAt: this.getMoreThanOrEqualHelper(oneMonthAgo)
-        },
-        order: { updatedAt: 'DESC' },
-        take: 5,
-        relations: ['assignedTo']
-      });
+      const recentAuditLogs = await this.auditLogRepository
+        .createQueryBuilder('audit')
+        .leftJoinAndSelect('audit.user', 'user')
+        .leftJoin('user.memberships', 'membership')
+        .where('membership.organizationId = :orgId', { orgId })
+        .andWhere('audit.createdAt >= :oneMonthAgo', { oneMonthAgo })
+        .orderBy('audit.createdAt', 'DESC')
+        .limit(2)
+        .getMany();
       
       const timeAgo = (date: Date) => {
         const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -298,16 +301,26 @@ export class OrganizationsService {
         return Math.floor(seconds) + " seconds ago";
       };
 
-      recentActivityData = recentTasks.map(task => {
-        let actionStr = `updated task "${task.title}"`;
-        if (task.status === TaskStatus.DONE) actionStr = `completed task "${task.title}"`;
-        else if (task.status === TaskStatus.IN_REVIEW) actionStr = `moved "${task.title}" to Review`;
-        
+      recentActivityData = recentAuditLogs.map((log) => {
+        const payload = log.description || {};
+        const entityTypeLower = log.entityType?.toLowerCase() || 'item';
+
+        let action: string;
+        if (entityTypeLower === 'userinvite') {
+          action = `joined via invite`;
+        } else {
+          const entityName = payload.title || payload.name || entityTypeLower;
+          const actionVerb = log.action?.toLowerCase() || 'updated';
+          action = `${actionVerb} ${entityTypeLower} "${entityName}"`;
+        }
+
         return {
-            id: task.id,
-            user: task.assignedTo ? `${task.assignedTo.firstName}${task.assignedTo.lastName ? ' ' + task.assignedTo.lastName : ''}`.trim() : "Unassigned",
-            action: actionStr,
-            timestamp: timeAgo(task.updatedAt)
+          id: log.id,
+          user: log.user
+            ? `${log.user.firstName}${log.user.lastName ? ` ${log.user.lastName}` : ''}`.trim()
+            : 'Unknown',
+          action,
+          timestamp: timeAgo(log.createdAt),
         };
       });
     }
@@ -363,8 +376,4 @@ export class OrganizationsService {
     return In(values);
   }
 
-  private getMoreThanOrEqualHelper(value: any): any {
-    const { MoreThanOrEqual } = require('typeorm');
-    return MoreThanOrEqual(value);
-  }
 }

@@ -67,11 +67,16 @@ export class ActivityService {
     return auditLogs.map(log => {
       const payload = log.description || {};
       let entityName = 'Unknown';
-      
-      if (log.entityType.toLowerCase() === 'project') {
+      const entityTypeLower = log.entityType.toLowerCase();
+
+      if (entityTypeLower === 'userinvite') {
+        entityName = `${payload.firstName}${payload.lastName ? ' ' + payload.lastName : ''}` || 'New Member';
+      } else if (entityTypeLower === 'project') {
         entityName = payload.name || 'Project';
+      } else if (entityTypeLower === 'user') {
+        entityName = `${payload.firstName}${payload.lastName ? ' ' + payload.lastName : ''}` || 'User';
       } else {
-        entityName = payload.title || 'Task';
+        entityName = payload.title || payload.name || 'Task';
       }
 
       return {
@@ -84,7 +89,7 @@ export class ActivityService {
         targetName: log.entityType,
         targetId: log.entityId,
         name: entityName,
-        color: this.getColorForAction(log.action),
+        color: this.getColorForAction(log.action, log.entityType),
         detail: JSON.stringify(payload),
       };
     });
@@ -92,9 +97,10 @@ export class ActivityService {
 
   private mapActionToType(log: AuditLog): string {
     const entity = log.entityType.toLowerCase();
+    if (entity === 'userinvite') return 'userinvite_accepted';
     switch (log.action) {
       case 'CREATE': return `${entity}_created`;
-      case 'UPDATE': 
+      case 'UPDATE':
         if (entity === 'taskstatus') return 'task_status_updated';
         return `${entity}_updated`;
       case 'DELETE': return `${entity}_deleted`;
@@ -105,8 +111,9 @@ export class ActivityService {
 
   private generateDescription(log: AuditLog): string {
     let entity = log.entityType.toLowerCase();
+    if (entity === 'userinvite') return 'joined the workspace via invite';
     if (entity === 'taskstatus') entity = 'task status';
-    
+
     switch (log.action) {
       case 'CREATE': return `created a new ${entity}`;
       case 'UPDATE': return `updated ${entity}`;
@@ -116,7 +123,8 @@ export class ActivityService {
     }
   }
 
-  private getColorForAction(action: string): string {
+  private getColorForAction(action: string, entityType?: string): string {
+    if (entityType?.toLowerCase() === 'userinvite') return '#8B5CF6';
     switch (action) {
       case 'CREATE': return '#10B981';
       case 'UPDATE': return '#F59E0B';

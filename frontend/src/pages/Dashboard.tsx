@@ -148,14 +148,14 @@ export function Dashboard() {
               Overview of your workspace and latest updates.
             </Typography>
           </Box>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             startIcon={<AddIcon />}
             onClick={handleOpenModal}
-            disabled={isProjectLimitReached}
-            sx={{ 
-              borderRadius: '8px', 
-              backgroundColor: '#FFFFFF', 
+            disabled={isProjectLimitReached || user?.orgRole === 'MEMBER'}
+            sx={{
+              borderRadius: '8px',
+              backgroundColor: '#FFFFFF',
               color: '#000000',
               fontWeight: 700,
               '&:hover': { backgroundColor: '#E2E2E2' }
@@ -335,7 +335,7 @@ export function Dashboard() {
                 <Typography variant="caption" color="text.disabled" display="block" mb={1}>
                   HAVE A NEW PROJECT?
                 </Typography>
-                <Button size="small" onClick={handleOpenModal} sx={{ fontWeight: 700 }}>Launch Setup</Button>
+                <Button size="small" onClick={handleOpenModal} disabled={user?.orgRole === 'MEMBER'} sx={{ fontWeight: 700 }}>Launch Setup</Button>
               </Box>
             </Card>
           </Grid>

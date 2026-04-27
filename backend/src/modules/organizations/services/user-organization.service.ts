@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { UserOrganizationMembership, OrganizationRole } from '../../users/entities/user-organization-membership.entity';
+import { UserOrganizationMembership } from '../../users/entities/user-organization-membership.entity';
+import { OrganizationRole } from '../../../common/enums';
 import { Organization } from '../entities/organization.entity';
 import { User } from '../../users/entities/user.entity';
 import { Repository } from 'typeorm';
@@ -55,7 +56,7 @@ export class UserOrganizationService {
       role,
     });
 
-    const savedMembership = await this.membershipRepository.save(membership);
+    await this.membershipRepository.save(membership);
 
     // Reload with relations
     const reloaded = await this.membershipRepository.findByUserAndOrg(userId, organizationId);
@@ -102,7 +103,7 @@ export class UserOrganizationService {
     }
 
     membership.role = newRole;
-    const updated = await this.membershipRepository.save(membership);
+    await this.membershipRepository.save(membership);
 
     const reloaded = await this.membershipRepository.findByUserAndOrg(userId, organizationId);
     if (!reloaded) {
@@ -158,28 +159,13 @@ export class UserOrganizationService {
   }
 
   /**
-   * Get owners of organization
-   */
-  async getOrgOwners(organizationId: string): Promise<UserOrganizationMembership[]> {
-    return this.membershipRepository.findOrgMembersByRole(
-      organizationId,
-      OrganizationRole.OWNER,
-    );
-  }
-
-  /**
-   * Get admins and owners of organization
+   * Get admins of organization
    */
   async getOrgAdmins(organizationId: string): Promise<UserOrganizationMembership[]> {
-    const admins = await this.membershipRepository.findOrgMembersByRole(
+    return this.membershipRepository.findOrgMembersByRole(
       organizationId,
       OrganizationRole.ADMIN,
     );
-    const owners = await this.membershipRepository.findOrgMembersByRole(
-      organizationId,
-      OrganizationRole.OWNER,
-    );
-    return [...owners, ...admins];
   }
 
   /**
@@ -187,38 +173,5 @@ export class UserOrganizationService {
    */
   async countOrgMembers(organizationId: string): Promise<number> {
     return this.membershipRepository.countOrgMembers(organizationId);
-  }
-
-  /**
-   * Transfer organization ownership
-   */
-  async transferOwnership(
-    fromUserId: string,
-    toUserId: string,
-    organizationId: string,
-  ): Promise<void> {
-    // Verify from user is OWNER
-    const fromMembership = await this.membershipRepository.findByUserAndOrg(
-      fromUserId,
-      organizationId,
-    );
-    if (!fromMembership || fromMembership.role !== OrganizationRole.OWNER) {
-      throw new ForbiddenException(`User is not owner of this organization`);
-    }
-
-    // Verify to user is member
-    const toMembership = await this.membershipRepository.findByUserAndOrg(
-      toUserId,
-      organizationId,
-    );
-    if (!toMembership) {
-      throw new NotFoundException(`Target user is not a member of this organization`);
-    }
-
-    // Transfer ownership
-    fromMembership.role = OrganizationRole.ADMIN;
-    toMembership.role = OrganizationRole.OWNER;
-
-    await this.membershipRepository.save([fromMembership, toMembership]);
   }
 }

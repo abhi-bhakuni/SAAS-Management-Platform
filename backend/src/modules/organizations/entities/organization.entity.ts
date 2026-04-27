@@ -83,6 +83,6 @@ export class Organization {
    */
   getAdmin(): UserOrganizationMembership | null | undefined {
     if (!this.memberships) return null;
-    return this.memberships.find((m) => m.isAdmin() || m.isOwner());
+    return this.memberships.find((m) => m.isAdmin());
   }
 }

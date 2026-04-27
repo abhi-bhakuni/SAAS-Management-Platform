@@ -10,6 +10,21 @@ const hashPassword = async (password: string) => {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
+const validatePassword = (password: string): { isValid: boolean; message: string } => {
+  if (
+    !password || 
+    password.length < 8 || 
+    !/[A-Z]/.test(password) || 
+    !/[a-z]/.test(password) || 
+    !/[0-9]/.test(password) || 
+    !/[!@#$%^&*(),.?":{}|<>]/.test(password)
+  ) {
+    return { isValid: false, message: 'Password should be strong' };
+  }
+  
+  return { isValid: true, message: '' };
+};
+
 interface User {
   id: string;
   email: string;
@@ -17,7 +32,7 @@ interface User {
   lastName: string;
   role: string;
   selectedOrgId?: string;
-  selectedOrgRole?: string;
+  orgRole?: string;
   bio?: string;
 }
 
@@ -60,6 +75,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   const login = async (credentials: any) => {
+    const validation = validatePassword(credentials.password);
+    if (!validation.isValid) {
+      throw new Error(validation.message);
+    }
+    
     const secureCredentials = { 
       ...credentials, 
       password: await hashPassword(credentials.password) 
@@ -83,6 +103,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (signUpData: any) => {
+    const validation = validatePassword(signUpData.password);
+    if (!validation.isValid) {
+      throw new Error(validation.message);
+    }
+    
     const secureData = { 
       ...signUpData, 
       password: await hashPassword(signUpData.password) 

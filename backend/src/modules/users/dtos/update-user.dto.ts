@@ -6,7 +6,7 @@ import {
   MaxLength,
   IsEnum,
 } from 'class-validator';
-import { UserRole } from '../../../common/enums';
+import { OrganizationRole } from '../../../common/enums';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -31,8 +31,8 @@ export class UpdateUserDto {
   bio?: string;
 
   @IsOptional()
-  @IsEnum(UserRole)
-  role?: UserRole;
+  @IsEnum(OrganizationRole)
+  role?: OrganizationRole;
 
   @IsOptional()
   isActive?: boolean;

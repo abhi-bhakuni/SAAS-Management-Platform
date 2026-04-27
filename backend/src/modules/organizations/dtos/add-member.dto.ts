@@ -1,5 +1,5 @@
 import { IsUUID, IsEnum } from 'class-validator';
-import { OrganizationRole } from '../../users/entities/user-organization-membership.entity';
+import { OrganizationRole } from '../../../common/enums';
 import { Transform } from 'class-transformer';
 
 export class AddMemberDto {

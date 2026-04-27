@@ -14,7 +14,7 @@ import { OrganizationsService } from '../services/organizations.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { OrgMembershipGuard } from '../../auth/guards/org-membership.guard';
 import { Roles, CurrentUser, CurrentOrganization } from '../../auth/decorators/index';
-import { UserRole } from '../../../common/enums';
+import { OrganizationRole } from '../../../common/enums';
 
 @Controller('organizations')
 @UseGuards(JwtAuthGuard)
@@ -27,7 +27,7 @@ export class OrganizationsController {
   @Get()
   async findAll(@CurrentUser() user: any): Promise<any> {
     // System ADMIN can see all organizations
-    if (user.role === UserRole.ADMIN) {
+    if (user.role === OrganizationRole.ADMIN) {
       return this.organizationsService.findAll();
     }
     // Regular users can only see their current organization
@@ -48,7 +48,7 @@ export class OrganizationsController {
     @CurrentUser() user: any,
   ): Promise<any> {
     // Validate workspace context
-    if (orgId !== user.selectedOrgId && user.role !== UserRole.ADMIN) {
+    if (orgId !== user.selectedOrgId && user.role !== OrganizationRole.ADMIN) {
       throw new ForbiddenException(
         'Workspace mismatch: cannot access a different organization',
       );
@@ -61,13 +61,13 @@ export class OrganizationsController {
    * Validates org matches current workspace context from JWT
    */
   @UseGuards(OrgMembershipGuard)
-  @Get(':orgId')
+  @Get(':orgId([0-9a-fA-F-]{36})')
   async findOne(
     @Param('orgId') orgId: string,
     @CurrentUser() user: any,
   ): Promise<any> {
     // Validate workspace context
-    if (orgId !== user.selectedOrgId && user.role !== UserRole.ADMIN) {
+    if (orgId !== user.selectedOrgId && user.role !== OrganizationRole.ADMIN) {
       throw new ForbiddenException(
         'Workspace mismatch: cannot access a different organization',
       );
@@ -78,7 +78,7 @@ export class OrganizationsController {
   /**
    * POST /organizations - Create new organization (admin only)
    */
-  @Roles(UserRole.ADMIN)
+  @Roles(OrganizationRole.ADMIN)
   @Post()
   async create(@Body() createOrgDto: any): Promise<any> {
     return this.organizationsService.create(createOrgDto);
@@ -89,14 +89,14 @@ export class OrganizationsController {
    * Admins can update any org; members can only update through OrgRoleGuard
    */
   @UseGuards(OrgMembershipGuard)
-  @Put(':orgId')
+  @Put(':orgId([0-9a-fA-F-]{36})')
   async update(
     @Param('orgId') orgId: string,
     @Body() updateOrgDto: any,
     @CurrentUser() user: any,
   ): Promise<any> {
     // Validate workspace context
-    if (orgId !== user.selectedOrgId && user.role !== UserRole.ADMIN) {
+    if (orgId !== user.selectedOrgId && user.role !== OrganizationRole.ADMIN) {
       throw new ForbiddenException(
         'Workspace mismatch: cannot access a different organization',
       );
@@ -107,8 +107,8 @@ export class OrganizationsController {
   /**
    * DELETE /organizations/:orgId - Delete organization (admin only)
    */
-  @Roles(UserRole.ADMIN)
-  @Delete(':orgId')
+  @Roles(OrganizationRole.ADMIN)
+  @Delete(':orgId([0-9a-fA-F-]{36})')
   async remove(@Param('orgId') orgId: string): Promise<any> {
     return this.organizationsService.remove(orgId);
   }

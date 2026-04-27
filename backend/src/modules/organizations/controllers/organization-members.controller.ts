@@ -21,7 +21,7 @@ import {
   UpdateMemberRoleDto,
   MemberResponseDto,
 } from '../dtos';
-import { OrganizationRole } from '../../users/entities/user-organization-membership.entity';
+import { OrganizationRole } from '../../../common/enums';
 
 @Controller('organizations/members')
 @UseGuards(JwtAuthGuard, OrgMembershipGuard)
@@ -91,12 +91,12 @@ export class OrganizationMembersController {
       throw new ForbiddenException('Workspace mismatch - cannot access different org');
     }
 
-    // Prevent demoting yourself if you're the only owner
-    if (userId === user.id && updateRoleDto.role !== OrganizationRole.OWNER) {
-      const owners = await this.userOrgService.getOrgOwners(orgId);
-      if (owners.length === 1 && owners[0].userId === user.id) {
+    // Prevent demoting yourself if you're the only admin
+    if (userId === user.id && updateRoleDto.role !== OrganizationRole.ADMIN) {
+      const admins = await this.userOrgService.getOrgAdmins(orgId);
+      if (admins.length === 1 && admins[0].userId === user.id) {
         throw new ForbiddenException(
-          'Cannot demote the last owner of the organization',
+          'Cannot demote the last admin of the organization',
         );
       }
     }
@@ -126,12 +126,12 @@ export class OrganizationMembersController {
       throw new ForbiddenException('Workspace mismatch - cannot access different org');
     }
 
-    // Prevent removing yourself if you're the only owner
+    // Prevent removing yourself if you're the only admin
     if (userId === user.id) {
-      const owners = await this.userOrgService.getOrgOwners(orgId);
-      if (owners.length === 1 && owners[0].userId === user.id) {
+      const admins = await this.userOrgService.getOrgAdmins(orgId);
+      if (admins.length === 1 && admins[0].userId === user.id) {
         throw new ForbiddenException(
-          'Cannot remove yourself as the last owner of the organization',
+          'Cannot remove yourself as the last admin of the organization',
         );
       }
     }

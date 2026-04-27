@@ -10,10 +10,12 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UsersService } from '../../users/services/users.service';
-import { LoginDto, SignupDto, AuthResponseDto, AuthUserDto } from '../dtos/index';
-import { User } from '../../users/entities/user.entity';
-import { UserOrganizationMembership, OrganizationRole } from '../../users/entities/user-organization-membership.entity';
+import { LoginDto, SignupDto, AuthResponseDto } from '../dtos/index';
+import { UserOrganizationMembership } from '../../users/entities/user-organization-membership.entity';
+import { AuditLog } from '../../../common/entities/audit-log.entity';
+import { OrganizationRole } from '../../../common/enums';
 import { OrganizationsService } from '@/modules/organizations/services/organizations.service';
+import { OrganizationInvitesService } from '@/modules/organizations/services/organization-invites.service';
 
 @Injectable()
 export class AuthService {
@@ -22,8 +24,11 @@ export class AuthService {
     private jwtService: JwtService,
     private usersService: UsersService,
     private organizationsService: OrganizationsService,
+    private organizationInvitesService: OrganizationInvitesService,
     @InjectRepository(UserOrganizationMembership)
     private membershipRepository: Repository<UserOrganizationMembership>,
+    @InjectRepository(AuditLog)
+    private auditLogRepository: Repository<AuditLog>,
   ) {}
 
   /**
@@ -31,42 +36,123 @@ export class AuthService {
    * User will need to join an org via invite or admin assignment
    */
   async register(signupDto: SignupDto): Promise<AuthResponseDto> {
-    try {
-      // Set default role if not provided
-      if (!signupDto.role) {
-        signupDto.role = 'admin' as any;
+    if(signupDto.inviteToken) {
+      try {
+        // Find the invite by token
+        const invite = await this.organizationInvitesService.getInvite(signupDto.inviteToken);
+
+        if (!invite) {
+          throw new BadRequestException('Invalid invite token');
+        }
+
+        if (invite.status !== 'PENDING') {
+          throw new BadRequestException('Invite is no longer valid or has already been used');
+        }
+
+        if (signupDto.email.toLowerCase() !== invite.email.toLowerCase()) {
+          throw new BadRequestException('Email does not match the invite');
+        }
+
+        // Create user via UsersService (WITHOUT organizationId)
+        // Global role is always 'member' for invite-based signups; org-level role lives in the membership
+        const user = await this.usersService.create({
+          ...signupDto,
+          email: invite.email, // Override email with the one from the invite to prevent abuse
+          role: invite.role
+        } as any);
+
+        await this.auditLogRepository.save(
+          this.auditLogRepository.create({
+            userId: user.id,
+            action: 'CREATE',
+            entityType: 'UserInvite',
+            entityId: user.id,
+            description: {
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              organizationId: invite.organizationId,
+              role: invite.role,
+            },
+          }),
+        );
+
+        // Create membership for the new user in the invited organization
+        const membership = this.membershipRepository.create({
+          userId: user.id,
+          organizationId: invite.organizationId,
+          role: invite.role,
+        });
+        await this.membershipRepository.save(membership);
+
+        // Mark the invite as ACCEPTED now that the user has signed in
+        await this.organizationInvitesService.markInviteAccepted(signupDto.inviteToken);
+
+        // Generate token with the invited org as selectedOrgId
+        const token = await this.generateToken(user, invite.organizationId);
+
+        return {
+          access_token: token,
+          user: await this.formatUserResponse(user, [membership]),
+          expiresIn: 86400, // 24 hours
+        };
+      } catch (error) {
+        if (error instanceof BadRequestException) {
+          throw error;
+        }
+        if ((error as any).code === '23505') {
+          throw new ConflictException('Email already exists');
+        }
+        throw error;
       }
+    } else {
+      try {
+        // Set default role if not provided
+        if (!signupDto.role) {
+          signupDto.role = 'admin' as any;
+        }
 
-      // Create organizaion of a new user
-      const new_org = await this.organizationsService.create({
-        name: `${signupDto.firstName}'s Workspace`,
-        slug: `organization-workspace-${signupDto.firstName.toLowerCase()}`,
-      });
+        // Create organizaion of a new user
+        const new_org = await this.organizationsService.create({
+          name: `${signupDto.firstName}'s Workspace`,
+          slug: `organization-workspace-${signupDto.firstName.toLowerCase()}`,
+        });
 
-      // Create user via UsersService (WITHOUT organizationId)
-      const user = await this.usersService.create(signupDto as any);
+        // Create user via UsersService (WITHOUT organizationId)
+        const user = await this.usersService.create(signupDto as any);
 
-      // Create membership for the new user in the new organization
-      const membership = this.membershipRepository.create({
-        userId: user.id,
-        organizationId: new_org.id,
-        role: OrganizationRole.OWNER,
-      });
-      await this.membershipRepository.save(membership);
+        await this.auditLogRepository.save(
+          this.auditLogRepository.create({
+            userId: user.id,
+            action: 'CREATE',
+            entityType: 'User',
+            entityId: user.id,
+            description: { email: user.email, firstName: user.firstName, lastName: user.lastName },
+          }),
+        );
 
-      // Generate token with the new org as selectedOrgId
-      const token = await this.generateToken(user, new_org.id);
+        // Create membership for the new user in the new organization
+        const membership = this.membershipRepository.create({
+          userId: user.id,
+          organizationId: new_org.id,
+          role: OrganizationRole.ADMIN,
+        });
+        await this.membershipRepository.save(membership);
 
-      return {
-        access_token: token,
-        user: await this.formatUserResponse(user, [membership]),
-        expiresIn: 86400, // 24 hours
-      };
-    } catch (error) {
-      if ((error as any).code === '23505') {
-        throw new ConflictException('Email already exists');
+        // Generate token with the new org as selectedOrgId
+        const token = await this.generateToken(user, new_org.id);
+
+        return {
+          access_token: token,
+          user: await this.formatUserResponse(user, [membership]),
+          expiresIn: 86400, // 24 hours
+        };
+      } catch (error) {
+        if ((error as any).code === '23505') {
+          throw new ConflictException('Email already exists');
+        }
+        throw error;
       }
-      throw error;
     }
   }
 
@@ -162,6 +248,30 @@ export class AuthService {
       access_token: token,
       selectedOrgId: targetOrgId,
       selectedOrgRole: membership.role,
+    };
+  }
+
+  /**
+   * Build a full auth response for an already provisioned user in a specific org context.
+   */
+  async createAuthResponseForOrg(user: any, selectedOrgId: string): Promise<AuthResponseDto> {
+    const memberships = await this.membershipRepository.find({
+      where: { userId: user.id },
+      relations: ['organization'],
+    });
+
+    if (memberships.length === 0) {
+      throw new ForbiddenException(
+        'User must be a member of at least one organization. Contact an administrator.',
+      );
+    }
+
+    const token = await this.generateToken(user, selectedOrgId);
+
+    return {
+      access_token: token,
+      user: await this.formatUserResponse(user, memberships),
+      expiresIn: 86400,
     };
   }
 

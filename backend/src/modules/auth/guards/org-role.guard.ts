@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { UserRole, OrganizationRole } from '../../../common/enums';
+import { OrganizationRole } from '../../../common/enums';
 
 @Injectable()
 export class OrgRoleGuard implements CanActivate {
@@ -16,7 +16,7 @@ export class OrgRoleGuard implements CanActivate {
     const user = request.user;
 
     // System ADMIN always has access regardless of org role
-    if (user.role === UserRole.ADMIN) {
+    if (user.role === OrganizationRole.ADMIN) {
       return true;
     }
 
@@ -45,15 +45,15 @@ export class OrgRoleGuard implements CanActivate {
 
   /**
    * Check if user's role is sufficient for the required roles
-   * Role hierarchy: OWNER > ADMIN > MEMBER
+   * Role hierarchy: ADMIN > MANAGER > MEMBER
    */
   private hasRequiredOrgRole(
     userRole: OrganizationRole,
     requiredRoles: OrganizationRole[],
   ): boolean {
     const roleHierarchy = {
-      [OrganizationRole.OWNER]: 3,
-      [OrganizationRole.ADMIN]: 2,
+      [OrganizationRole.ADMIN]: 3,
+      [OrganizationRole.MANAGER]: 2,
       [OrganizationRole.MEMBER]: 1,
     };
 

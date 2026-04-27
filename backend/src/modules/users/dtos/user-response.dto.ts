@@ -1,5 +1,5 @@
 import { Exclude } from 'class-transformer';
-import { UserRole } from '../../../common/enums';
+import { OrganizationRole } from '../../../common/enums';
 
 export class UserResponseDto {
   id!: string;
@@ -11,7 +11,7 @@ export class UserResponseDto {
   @Exclude()
   password!: string;
 
-  role!: UserRole;
+  role!: OrganizationRole;
   emailVerified!: boolean;
   isActive!: boolean;
   organizationId!: string;

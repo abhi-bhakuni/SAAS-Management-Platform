@@ -1,11 +1,11 @@
-import { UserRole } from '../../../common/enums';
+import { OrganizationRole } from '../../../common/enums';
 import { UserResponseDto } from '../../users/dtos/user-response.dto';
 
 export class InviteResponseDto {
   id: string;
   organizationId: string;
   email: string;
-  role: UserRole;
+  role: OrganizationRole;
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED';
   expiresAt: Date;
   acceptedAt?: Date;

@@ -10,6 +10,7 @@ import { Project } from '../modules/projects/entities/project.entity';
 import { Task } from '../modules/projects/entities/task.entity';
 import { TaskStatusHistory } from '../modules/projects/entities/task-status-history.entity';
 import { SubscriptionPlan } from '@/modules/subscriptions/entities/subscription-plan.entity';
+import { TypeOrmCustomLogger } from '@/common/loggers/typeorm-logger';
 
 dotenv.config();
 
@@ -34,7 +35,8 @@ export const dataSourceOptions: DataSourceOptions = {
   ],
   migrations: ['dist/migrations/*.js'],
   synchronize: process.env.NODE_ENV === 'development',
-  logging: process.env.NODE_ENV === 'development',
+  logging: ['query', 'error', 'warn'],
+  logger: new TypeOrmCustomLogger(),
   ssl: process.env.DATABASE_SSL === 'true',
 };
 

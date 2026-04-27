@@ -4,7 +4,7 @@ import {
   ExecutionContext,
   ForbiddenException,
 } from '@nestjs/common';
-import { UserRole } from '../../../common/enums';
+import { OrganizationRole } from '../../../common/enums';
 
 @Injectable()
 export class OrgAdminGuard implements CanActivate {
@@ -12,8 +12,8 @@ export class OrgAdminGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    // Only ADMIN users or org-level admins can access
-    if (user.role !== UserRole.ADMIN) {
+    // Only ADMIN users can access
+    if (user.role !== OrganizationRole.ADMIN) {
       throw new ForbiddenException(
         'Only organization administrators can perform this action',
       );

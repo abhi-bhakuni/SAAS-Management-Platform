@@ -96,6 +96,7 @@ function App() {
           <Router>
             <Routes>
             <Route path="/login" element={<Auth />} />
+            <Route path="/auth" element={<Auth />} />
             
             {/* New Saas Routing Structure */}
             <Route path="/dashboard" element={<Dashboard />} />

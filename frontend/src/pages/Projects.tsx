@@ -134,13 +134,13 @@ export function Projects() {
             </Typography>
           </Box>
           
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             disableElevation
             startIcon={<AddIcon />}
             onClick={handleOpenModal}
-            disabled={isProjectLimitReached}
-            sx={{ 
+            disabled={isProjectLimitReached || user?.orgRole === 'MEMBER'}
+            sx={{
               borderRadius: '6px',
               textTransform: 'none',
               fontWeight: 700,
@@ -203,13 +203,14 @@ export function Projects() {
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 4, maxWidth: 320, mx: 'auto', lineHeight: 1.6 }}>
                   Launch a new project to organize your tasks and collaborate with your team in real-time.
                 </Typography>
-                <Button 
-                  variant="outlined" 
+                <Button
+                  variant="outlined"
                   startIcon={<AddIcon />}
                   onClick={handleOpenModal}
-                  sx={{ 
-                    borderRadius: '8px', 
-                    textTransform: 'none', 
+                  disabled={user?.orgRole === 'MEMBER'}
+                  sx={{
+                    borderRadius: '8px',
+                    textTransform: 'none',
                     fontWeight: 700,
                     borderColor: 'rgba(255, 255, 255, 0.1)',
                     color: '#FFFFFF',

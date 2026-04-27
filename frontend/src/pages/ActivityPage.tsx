@@ -102,8 +102,20 @@ export function ActivityPage() {
     return groups;
   }, [filteredActivities]);
 
+  const navigateToActivity = (targetName: string, targetId: string) => {
+    const name = targetName.toLowerCase();
+    if (name === 'user' || name === 'userinvite') {
+      navigate('/settings', { state: { tab: 1 } });
+    } else if (name === 'task') {
+      navigate('/tasks');
+    } else {
+      navigate(`/${name}s/${targetId}`);
+    }
+  };
+
   const getActivityIcon = (type: string, color: string) => {
     const sx = { fontSize: 18, color };
+    if (type.includes('invited') || type.includes('userinvite')) return <PersonAddOutlinedIcon sx={sx} />;
     if (type.includes('created')) return <AddCircleOutlineIcon sx={sx} />;
     if (type.includes('moved') || type.includes('status')) return <SwapHorizIcon sx={sx} />;
     if (type.includes('assigned')) return <PersonAddOutlinedIcon sx={sx} />;
@@ -136,11 +148,13 @@ export function ActivityPage() {
               <Select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                sx={selectStyle}
+                sx={{ ...selectStyle, minHeight: 40 }}
               >
                 <MenuItem value="all">Select Type</MenuItem>
                 <MenuItem value="project">Project</MenuItem>
                 <MenuItem value="task">Task</MenuItem>
+                <MenuItem value="userinvite">Member Joined</MenuItem>
+                <MenuItem value="user">User</MenuItem>
               </Select>
             </FormControl>
 
@@ -149,7 +163,7 @@ export function ActivityPage() {
               placeholder="Search logs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              sx={{ ...selectStyle, minWidth: 200, '& .MuiOutlinedInput-root': { py: '2px' } }}
+              sx={{ ...selectStyle, minWidth: 200 }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -238,7 +252,10 @@ export function ActivityPage() {
                                 <Box component="span" sx={{ fontWeight: 800, color: '#FFFFFF', mr: 1 }}>{activity.user}</Box>
                                 {activity.description} 
                                 <Box 
-                                  onClick={(e) => { e.stopPropagation(); navigate(`/${activity.targetName.toLowerCase()}s/${activity.targetId}`); }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigateToActivity(activity.targetName, activity.targetId);
+                                  }}
                                   component="span" 
                                   sx={{ 
                                     mx: 1, 
@@ -248,7 +265,7 @@ export function ActivityPage() {
                                     '&:hover': { textDecoration: 'underline' } 
                                   }}
                                 >
-                                  '{activity.targetName}'
+                                  '{activity.name}'
                                 </Box>
                                 {activity.toStatus && (
                                   <>
@@ -403,7 +420,7 @@ export function ActivityPage() {
                 <Button 
                   fullWidth 
                   variant="outlined" 
-                  onClick={() => navigate(`/${selectedActivity.targetName.toLowerCase()}s/${selectedActivity.targetId}`)}
+                  onClick={() => navigateToActivity(selectedActivity.targetName, selectedActivity.targetId)}
                   sx={{ 
                     borderRadius: '8px', 
                     color: '#FFFFFF', 

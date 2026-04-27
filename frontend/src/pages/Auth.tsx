@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { 
   Box, 
   Typography, 
@@ -10,7 +10,7 @@ import {
   Alert,
   CircularProgress
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
 import GoogleIcon from '@mui/icons-material/Google';
@@ -20,6 +20,7 @@ import { useAuth } from '../context/AuthContext';
 
 export function Auth() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, register } = useAuth();
   
   const [showPassword, setShowPassword] = useState(false);
@@ -32,21 +33,38 @@ export function Auth() {
   const [lastName, setLastName] = useState('');
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const mode = params.get('mode');
+    if (mode === 'signup') {
+      setIsLogin(false);
+    }
+  }, [location.search]);
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsSubmitting(true);
     
     try {
+      const params = new URLSearchParams(location.search);
+      const inviteToken = params.get('inviteId');
+
       if (isLogin) {
         await login({ email, password });
       } else {
-        await register({ email, password, firstName: firstName || 'User', lastName: lastName || undefined });
+        await register({
+          email,
+          password,
+          firstName: firstName || '',
+          lastName: lastName || '',
+          inviteToken: inviteToken || undefined,
+        });
       }
       navigate('/');
     } catch (err: any) {
       console.error(err);
-      setError(err.response?.data?.message || 'Authentication failed. Please try again.');
+      setError(err.response?.data?.message || err.message || 'Authentication failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

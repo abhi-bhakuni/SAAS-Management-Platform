@@ -7,6 +7,10 @@ export class EmailService {
 
   constructor(private mailerService: MailerService) {}
 
+  private getFrontendBaseUrl(): string {
+    return process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173';
+  }
+
   async sendInviteEmail(
     email: string,
     inviteToken: string,
@@ -23,7 +27,7 @@ export class EmailService {
           inviteToken,
           organizationName,
           inviterName,
-          acceptInviteUrl: `${process.env.APP_URL || 'http://localhost:3000'}/invites/${inviteToken}/accept`,
+          signupInviteUrl: `${this.getFrontendBaseUrl()}/auth?mode=signup&inviteId=${encodeURIComponent(inviteToken)}`,
         },
       });
       this.logger.log(`Invite email sent to ${email} for organization ${organizationName}`);
@@ -45,7 +49,7 @@ export class EmailService {
         context: {
           email,
           organizationName,
-          loginUrl: `${process.env.APP_URL || 'http://localhost:3000'}/login`,
+          loginUrl: `${this.getFrontendBaseUrl()}/login`,
         },
       });
       this.logger.log(`Acceptance confirmation email sent to ${email}`);

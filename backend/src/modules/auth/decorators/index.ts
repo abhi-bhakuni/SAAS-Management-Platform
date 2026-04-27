@@ -1,5 +1,5 @@
 import { createParamDecorator, ExecutionContext, SetMetadata, UseGuards } from '@nestjs/common';
-import { UserRole, OrganizationRole } from '../../../common/enums';
+import { OrganizationRole } from '../../../common/enums';
 import { RolesGuard } from '../guards/roles.guard';
 import { OrgRoleGuard } from '../guards/org-role.guard';
 
@@ -25,11 +25,8 @@ export const CurrentOrganization = createParamDecorator(
 
 /**
  * Mark required global user roles for a route (used with RolesGuard)
- * Checks role from JWT against required roles
- *
- * Example: @Roles(UserRole.ADMIN) - only admins can access
  */
-export const Roles = (...roles: UserRole[]) => {
+export const Roles = (...roles: OrganizationRole[]) => {
   return (target: any, key?: string | symbol, descriptor?: PropertyDescriptor) => {
     if (key && descriptor) {
       SetMetadata('roles', roles)(target, key, descriptor);
@@ -41,10 +38,7 @@ export const Roles = (...roles: UserRole[]) => {
 
 /**
  * Mark required organization roles for a route (used with OrgRoleGuard)
- * Checks orgRole from JWT against required roles
- * Role hierarchy: OWNER > ADMIN > MEMBER
- *
- * Example: @OrgRoles(OrganizationRole.ADMIN) - allows OWNER and ADMIN
+ * Role hierarchy: ADMIN > MANAGER > MEMBER
  */
 export const OrgRoles = (...roles: OrganizationRole[]) => {
   return (target: any, key?: string | symbol, descriptor?: PropertyDescriptor) => {
@@ -58,17 +52,11 @@ export const OrgRoles = (...roles: OrganizationRole[]) => {
 
 /**
  * Mark a route as public (no authentication required)
- * Useful for marking routes that skip JWT validation
- * Used with global JwtAuthGuard
  */
 export const Public = () => SetMetadata('isPublic', true);
 
 /**
  * Mark route as requiring organization membership
- * Validates user belongs to specified organization
- * @param paramName - Name of route param containing orgId (default: 'orgId')
- *
- * Example: @OrgRequired() on route like /organizations/:orgId/users
  */
 export const OrgRequired = (paramName: string = 'orgId') =>
   SetMetadata('orgRequired', paramName);

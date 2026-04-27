@@ -7,11 +7,12 @@ import { AuthController } from './controllers/auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from '../users/users.module';
 import { UserOrganizationMembership } from '../users/entities/user-organization-membership.entity';
+import { AuditLog } from '../../common/entities/audit-log.entity';
 import { OrganizationsModule } from '../organizations/organizations.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UserOrganizationMembership]),
+    TypeOrmModule.forFeature([UserOrganizationMembership, AuditLog]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {

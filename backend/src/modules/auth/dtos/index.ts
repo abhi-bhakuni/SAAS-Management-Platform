@@ -1,5 +1,5 @@
-import { IsEmail, IsString, MinLength, IsEnum, IsOptional, IsUUID } from 'class-validator';
-import { UserRole, OrganizationRole } from '../../../common/enums';
+import { IsEmail, IsString, MinLength, IsEnum, IsOptional, IsUUID, IsNotEmpty } from 'class-validator';
+import { OrganizationRole } from '../../../common/enums';
 import { Transform } from 'class-transformer';
 
 /**
@@ -10,7 +10,8 @@ export class LoginDto {
   email: string;
 
   @IsString()
-  @MinLength(6)
+  @IsNotEmpty()
+  @MinLength(8)
   password: string;
 }
 
@@ -32,9 +33,13 @@ export class SignupDto {
   @MinLength(6)
   password!: string;
 
-  @IsEnum(UserRole)
+  @IsEnum(OrganizationRole)
   @IsOptional()
-  role?: UserRole = UserRole.ADMIN;
+  role?: OrganizationRole = OrganizationRole.ADMIN;
+
+  @IsString()
+  @IsOptional()
+  inviteToken?: string;
 }
 
 /**
@@ -74,7 +79,7 @@ export class AuthUserDto {
   email: string;
   firstName: string;
   lastName: string;
-  role: UserRole; // Global role
+  role: OrganizationRole;
   organizations: OrganizationInfoDto[];
   selectedOrgId?: string;
   selectedOrgRole?: OrganizationRole;
@@ -93,11 +98,11 @@ export class AuthResponseDto {
  * JWT payload structure
  */
 export class JwtPayloadDto {
-  sub: string; // User ID
+  sub: string;
   email: string;
-  role: UserRole; // Global role
-  selectedOrgId: string; // Currently active workspace
-  orgRole: OrganizationRole; // Role within selectedOrgId
+  role: OrganizationRole;
+  selectedOrgId: string;
+  orgRole: OrganizationRole;
   iat: number;
   exp: number;
 }
