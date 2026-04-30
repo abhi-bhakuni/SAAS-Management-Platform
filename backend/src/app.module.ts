@@ -14,7 +14,6 @@ import { HealthModule } from './modules/health/health.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { SandboxModule } from './modules/sandbox/sandbox.module';
 import { ActivityModule } from './modules/activity/activity.module';
 import { ChatModule } from './modules/chat/chat.module';
 
@@ -34,7 +33,6 @@ import { ChatModule } from './modules/chat/chat.module';
     WebSocketModule,
     AnalyticsModule,
     HealthModule,
-    SandboxModule,
     ActivityModule,
     ChatModule,
   ],

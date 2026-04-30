@@ -298,8 +298,8 @@ export class SubscriptionsService {
     const freePlan = await this.subscriptionPlansService.getFreePlan();
     const freeLimits = {
       users: freePlan?.limits?.['users'] ?? 5,
-      projects: freePlan?.limits?.['projects'] ?? 3,
-      tasks: freePlan?.limits?.['tasks'] ?? 20,
+      projects: freePlan?.limits?.['projects'] ?? 5,
+      tasks: freePlan?.limits?.['tasks'] ?? 50,
     };
 
     const adminMembership = await this.membershipRepository.findOne({

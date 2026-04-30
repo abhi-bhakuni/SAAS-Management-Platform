@@ -207,3 +207,53 @@ CREATE INDEX ON audit_logs (action);
 CREATE INDEX ON audit_logs (createdAt);
 
 ALTER TABLE audit_logs ADD CONSTRAINT fk_audit_logs_userId FOREIGN KEY (userId) REFERENCES users(id) ON DELETE SET NULL;
+
+-- Chat Conversations table
+-- \d chat_conversations
+--  Column            | Type                        | Nullable | Default
+--  id                | uuid                        | not null | uuid_generate_v4()
+--  userId            | character varying(255)      | not null |
+--  userEmail         | character varying(255)      | not null |
+--  userName          | character varying(255)      | not null |
+--  last_message_at   | timestamp without time zone |          |
+--  unread_by_support | integer                     | not null | 0
+--  created_at        | timestamp without time zone | not null | now()
+--  updated_at        | timestamp without time zone | not null | now()
+
+CREATE TABLE chat_conversations (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  "userId" varchar(255) NOT NULL,
+  "userEmail" varchar(255) NOT NULL,
+  "userName" varchar(255) NOT NULL,
+  last_message_at timestamp,
+  unread_by_support integer NOT NULL DEFAULT 0,
+  created_at timestamp NOT NULL DEFAULT now(),
+  updated_at timestamp NOT NULL DEFAULT now()
+);
+
+CREATE INDEX ON chat_conversations ("userId");
+CREATE INDEX ON chat_conversations (last_message_at);
+
+-- Chat Messages table
+-- \d chat_messages
+--  Column          | Type                        | Nullable | Default
+--  id              | uuid                        | not null | uuid_generate_v4()
+--  conversation_id | uuid                        | not null |
+--  content         | text                        | not null |
+--  sender_type     | character varying(20)       | not null |
+--  sender_name     | character varying(255)      | not null |
+--  created_at      | timestamp without time zone | not null | now()
+
+CREATE TABLE chat_messages (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  conversation_id uuid NOT NULL,
+  content text NOT NULL,
+  sender_type varchar(20) NOT NULL,
+  sender_name varchar(255) NOT NULL,
+  created_at timestamp NOT NULL DEFAULT now()
+);
+
+CREATE INDEX ON chat_messages (conversation_id);
+CREATE INDEX ON chat_messages (created_at);
+
+ALTER TABLE chat_messages ADD CONSTRAINT fk_chat_messages_conversation FOREIGN KEY (conversation_id) REFERENCES chat_conversations(id) ON DELETE CASCADE;

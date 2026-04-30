@@ -275,7 +275,10 @@ export function Dashboard() {
                 <Box>
                   <Typography variant="caption" color="text.disabled" fontWeight="700">MONTHLY COMPLETION RATE</Typography>
                   <Typography variant="h5" fontWeight="800">
-                    {((data?.projectStatus.find((s: any) => s.name === "Completed")?.value ?? 0) * 100) / (data?.projectStatus.reduce((sum: number, s: any) => sum + (s.value ?? 0), 0) || 1)}%
+                    {(
+                      ((data?.projectStatus.find((s: any) => s.name === "Completed")?.value ?? 0) * 100) /
+                      (data?.projectStatus.reduce((sum: number, s: any) => sum + (s.value ?? 0), 0) || 1)
+                    ).toFixed(2)}%
                   </Typography>
                 </Box>
                 <Button size="small" onClick={() => navigate('/tasks')} sx={{ color: 'primary.main', fontWeight: 700 }}>View Details</Button>
