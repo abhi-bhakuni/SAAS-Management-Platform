@@ -10,7 +10,6 @@ import {
   Param,
   Inject,
   forwardRef,
-  Request,
 } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
 import { UsersService } from '../../users/services/users.service';
@@ -100,7 +99,7 @@ export class AuthController {
    */
   @Public()
   @Post('verify-email/:token')
-  async verifyEmail(@Param('token') token: string) {
+  async verifyEmail(@Param('token') _token: string) {
     // TODO: Implement email verification logic via UsersService
     return { message: 'Email verified successfully' };
   }
@@ -121,6 +120,24 @@ export class AuthController {
       inviteResult.user,
       inviteResult.invite.organizationId,
     );
+  }
+
+  /** POST /auth/forgot-password */
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() body: { email: string }) {
+    await this.authService.forgotPassword(body.email);
+    return { message: 'If that email exists, a reset link has been sent.' };
+  }
+
+  /** POST /auth/reset-password */
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() body: { token: string; newPassword: string }) {
+    await this.authService.resetPassword(body.token, body.newPassword);
+    return { message: 'Password reset successfully.' };
   }
 
   /** POST /auth/change-password */

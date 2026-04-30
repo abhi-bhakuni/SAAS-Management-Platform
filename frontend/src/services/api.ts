@@ -263,6 +263,17 @@ export const activityApi = {
   }
 };
 
+export const passwordApi = {
+  forgotPassword: async (email: string) => {
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+  resetPassword: async (token: string, newPassword: string) => {
+    const response = await api.post('/auth/reset-password', { token, newPassword });
+    return response.data;
+  },
+};
+
 export const securityApi = {
   changePassword: async (currentPassword: string, newPassword: string) => {
     const response = await api.post('/auth/change-password', { currentPassword, newPassword });
@@ -292,6 +303,25 @@ export const securityApi = {
   deleteAccount: async () => {
     const response = await api.delete('/auth/delete-account');
     return response.data;
+  },
+};
+
+export const chatApi = {
+  getMyConversation: async () => {
+    const response = await api.get('/chat/conversation');
+    return response.data as { conversation: any; messages: any[] };
+  },
+  ensureConversation: async () => {
+    const response = await api.post('/chat/conversation');
+    return response.data as { conversationId: string };
+  },
+  getAllConversations: async () => {
+    const response = await api.get('/chat/conversations');
+    return response.data as { conversations: any[] };
+  },
+  getMessages: async (conversationId: string) => {
+    const response = await api.get(`/chat/messages/${conversationId}`);
+    return response.data as { messages: any[] };
   },
 };
 

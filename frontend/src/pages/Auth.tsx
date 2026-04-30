@@ -16,7 +16,8 @@ import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined
 import GoogleIcon from '@mui/icons-material/Google';
 import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, validatePassword, hashPassword } from '../context/AuthContext';
+import { passwordApi } from '../services/api';
 
 export function Auth() {
   const navigate = useNavigate();
@@ -33,13 +34,57 @@ export function Auth() {
   const [lastName, setLastName] = useState('');
   const [error, setError] = useState('');
 
+  // Forgot-password flow
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSuccess, setForgotSuccess] = useState(false);
+
+  // Reset-password flow (arrived via email link)
+  const [resetToken, setResetToken] = useState('');
+  const [newResetPassword, setNewResetPassword] = useState('');
+  const [confirmResetPassword, setConfirmResetPassword] = useState('');
+  const [showResetPw, setShowResetPw] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
+
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const mode = params.get('mode');
-    if (mode === 'signup') {
-      setIsLogin(false);
-    }
+    const token = params.get('token');
+    if (mode === 'signup') setIsLogin(false);
+    if (mode === 'reset' && token) setResetToken(token);
   }, [location.search]);
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsSubmitting(true);
+    try {
+      await passwordApi.forgotPassword(forgotEmail.trim());
+      setForgotSuccess(true);
+    } catch {
+      setError('Failed to send reset link. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    const validation = validatePassword(newResetPassword);
+    if (!validation.isValid) { setError(validation.message); return; }
+    if (newResetPassword !== confirmResetPassword) { setError('Passwords do not match.'); return; }
+    setIsSubmitting(true);
+    try {
+      const hashed = await hashPassword(newResetPassword);
+      await passwordApi.resetPassword(resetToken, hashed);
+      setResetSuccess(true);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Invalid or expired reset link.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +106,7 @@ export function Auth() {
           inviteToken: inviteToken || undefined,
         });
       }
-      navigate('/');
+      navigate(email.trim().toLowerCase() === 'support@nexus.com' ? '/settings' : '/');
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.message || err.message || 'Authentication failed. Please try again.');
@@ -249,241 +294,399 @@ export function Auth() {
             <Typography fontWeight="700" fontSize="1rem" color="#EDEDED">Nexus</Typography>
           </Box>
 
-          {/* Heading */}
-          <Box mb={4}>
-            <Typography variant="h4" fontWeight="800" color="#EDEDED" letterSpacing="-0.03em" mb={0.75}>
-              {isLogin ? 'Welcome back' : 'Create account'}
-            </Typography>
-            <Typography variant="body2" color="#71717A">
-              {isLogin
-                ? 'Sign in to continue to your workspace.'
-                : 'Get started — free forever for small teams.'}
-            </Typography>
-          </Box>
+          {resetToken ? (
+            /* ── Reset password view ── */
+            <>
+              <Box mb={4}>
+                <Typography variant="h4" fontWeight="800" color="#EDEDED" letterSpacing="-0.03em" mb={0.75}>
+                  {resetSuccess ? 'Password updated!' : 'Set new password'}
+                </Typography>
+                <Typography variant="body2" color="#71717A">
+                  {resetSuccess
+                    ? 'You can now sign in with your new password.'
+                    : 'Choose a strong password for your account.'}
+                </Typography>
+              </Box>
 
-          {/* Error */}
-          {error && (
-            <Alert
-              severity="error"
-              sx={{
-                mb: 3,
-                borderRadius: '10px',
-                backgroundColor: 'rgba(239,68,68,0.08)',
-                border: '1px solid rgba(239,68,68,0.2)',
-                color: '#FCA5A5',
-                '& .MuiAlert-icon': { color: '#F87171' },
-              }}
-            >
-              {error}
-            </Alert>
-          )}
+              {error && (
+                <Alert severity="error" sx={{ mb: 3, borderRadius: '10px', backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#FCA5A5', '& .MuiAlert-icon': { color: '#F87171' } }}>
+                  {error}
+                </Alert>
+              )}
 
-          {/* Form card */}
-          <Box
-            sx={{
-              p: { xs: 3, sm: 3.5 },
-              borderRadius: '16px',
-              backgroundColor: 'rgba(255,255,255,0.025)',
-              border: '1px solid rgba(255,255,255,0.06)',
-              backdropFilter: 'blur(12px)',
-              boxShadow: '0 32px 64px -16px rgba(0,0,0,0.5)',
-            }}
-          >
-            {/* Google SSO */}
-            <Button
-              fullWidth
-              variant="outlined"
-              startIcon={<GoogleIcon sx={{ fontSize: '18px !important', color: '#DB4437' }} />}
-              sx={{
-                py: 1.25,
-                borderRadius: '10px',
-                textTransform: 'none',
-                fontWeight: 600,
-                fontSize: '0.875rem',
-                color: '#EDEDED',
-                borderColor: 'rgba(255,255,255,0.1)',
-                backgroundColor: 'rgba(255,255,255,0.03)',
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  backgroundColor: 'rgba(255,255,255,0.06)',
-                  borderColor: 'rgba(255,255,255,0.18)',
-                  boxShadow: 'none',
-                },
-              }}
-            >
-              Continue with Google
-            </Button>
-
-            {/* Divider */}
-            <Box sx={{ display: 'flex', alignItems: 'center', my: 2.5 }}>
-              <Divider sx={{ flexGrow: 1, borderColor: 'rgba(255,255,255,0.06)' }} />
-              <Typography variant="caption" color="#3F3F46" sx={{ mx: 2, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                or
-              </Typography>
-              <Divider sx={{ flexGrow: 1, borderColor: 'rgba(255,255,255,0.06)' }} />
-            </Box>
-
-            {/* Fields */}
-            <Box component="form" onSubmit={handleAuth}>
-              {!isLogin && (
-                <Box sx={{ display: 'flex', gap: 2, mb: 2.5 }}>
-                  <Box sx={{ flex: 1 }}>
+              {resetSuccess ? (
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={() => { setResetToken(''); setResetSuccess(false); setError(''); }}
+                  sx={{
+                    py: 1.35, borderRadius: '10px', textTransform: 'none', fontWeight: 700, fontSize: '0.875rem',
+                    background: 'linear-gradient(135deg, #FFFFFF 0%, #D4D4D8 100%)', color: '#0F0F11',
+                    boxShadow: '0 0 0 1px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)',
+                    '&:hover': { background: 'linear-gradient(135deg, #F4F4F5 0%, #C4C4C8 100%)', transform: 'translateY(-1px)' },
+                  }}
+                >
+                  Go to sign in
+                </Button>
+              ) : (
+                <Box
+                  component="form"
+                  onSubmit={handleResetPassword}
+                  sx={{ p: { xs: 3, sm: 3.5 }, borderRadius: '16px', backgroundColor: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', boxShadow: '0 32px 64px -16px rgba(0,0,0,0.5)' }}
+                >
+                  <Box mb={2.5}>
                     <Typography variant="caption" fontWeight="600" color="#71717A" sx={{ display: 'block', mb: 0.75, letterSpacing: '0.03em' }}>
-                      FIRST NAME
+                      NEW PASSWORD
                     </Typography>
                     <TextField
-                      fullWidth
-                      placeholder="Jane"
-                      size="small"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
+                      required fullWidth type={showResetPw ? 'text' : 'password'} placeholder="••••••••" size="small"
+                      value={newResetPassword} onChange={(e) => setNewResetPassword(e.target.value)}
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton onClick={() => setShowResetPw(!showResetPw)} edge="end" size="small" sx={{ color: '#52525B', '&:hover': { color: '#A1A1AA' } }}>
+                              {showResetPw ? <VisibilityOffOutlinedIcon fontSize="small" /> : <VisibilityOutlinedIcon fontSize="small" />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
                       sx={fieldSx}
                     />
                   </Box>
-                  <Box sx={{ flex: 1 }}>
+                  <Box mb={2.5}>
                     <Typography variant="caption" fontWeight="600" color="#71717A" sx={{ display: 'block', mb: 0.75, letterSpacing: '0.03em' }}>
-                      LAST NAME <Typography component="span" sx={{ fontSize: '0.65rem', opacity: 0.6 }}>(OPTIONAL)</Typography>
+                      CONFIRM PASSWORD
                     </Typography>
                     <TextField
-                      fullWidth
-                      placeholder="Smith"
-                      size="small"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
+                      required fullWidth type={showResetPw ? 'text' : 'password'} placeholder="••••••••" size="small"
+                      value={confirmResetPassword} onChange={(e) => setConfirmResetPassword(e.target.value)}
                       sx={fieldSx}
                     />
                   </Box>
+                  <Button
+                    type="submit" fullWidth variant="contained" disabled={isSubmitting}
+                    endIcon={!isSubmitting && <ArrowForwardIcon sx={{ fontSize: '16px !important' }} />}
+                    sx={{
+                      py: 1.35, borderRadius: '10px', textTransform: 'none', fontWeight: 700, fontSize: '0.875rem', letterSpacing: '-0.01em',
+                      background: 'linear-gradient(135deg, #FFFFFF 0%, #D4D4D8 100%)', color: '#0F0F11',
+                      boxShadow: '0 0 0 1px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)',
+                      transition: 'all 0.2s ease',
+                      '&:hover': { background: 'linear-gradient(135deg, #F4F4F5 0%, #C4C4C8 100%)', transform: 'translateY(-1px)' },
+                      '&.Mui-disabled': { background: 'rgba(255,255,255,0.08)', color: '#52525B' },
+                    }}
+                  >
+                    {isSubmitting ? <CircularProgress size={16} sx={{ color: '#52525B' }} /> : 'Set password'}
+                  </Button>
+                </Box>
+              )}
+            </>
+          ) : isForgotPassword ? (
+            /* ── Forgot password view ── */
+            <>
+              <Box mb={4}>
+                <Typography variant="h4" fontWeight="800" color="#EDEDED" letterSpacing="-0.03em" mb={0.75}>
+                  {forgotSuccess ? 'Check your inbox' : 'Forgot password?'}
+                </Typography>
+                <Typography variant="body2" color="#71717A">
+                  {forgotSuccess
+                    ? `A reset link was sent to ${forgotEmail}. Check your spam folder if you don't see it.`
+                    : "Enter your email and we'll send you a link to reset your password."}
+                </Typography>
+              </Box>
+
+              {error && (
+                <Alert severity="error" sx={{ mb: 3, borderRadius: '10px', backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#FCA5A5', '& .MuiAlert-icon': { color: '#F87171' } }}>
+                  {error}
+                </Alert>
+              )}
+
+              {!forgotSuccess && (
+                <Box
+                  component="form"
+                  onSubmit={handleForgotPassword}
+                  sx={{ p: { xs: 3, sm: 3.5 }, borderRadius: '16px', backgroundColor: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', boxShadow: '0 32px 64px -16px rgba(0,0,0,0.5)' }}
+                >
+                  <Box mb={2.5}>
+                    <Typography variant="caption" fontWeight="600" color="#71717A" sx={{ display: 'block', mb: 0.75, letterSpacing: '0.03em' }}>
+                      EMAIL
+                    </Typography>
+                    <TextField
+                      required fullWidth type="email" placeholder="example@company.com" size="small"
+                      value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
+                      sx={fieldSx}
+                    />
+                  </Box>
+                  <Button
+                    type="submit" fullWidth variant="contained" disabled={isSubmitting}
+                    endIcon={!isSubmitting && <ArrowForwardIcon sx={{ fontSize: '16px !important' }} />}
+                    sx={{
+                      py: 1.35, borderRadius: '10px', textTransform: 'none', fontWeight: 700, fontSize: '0.875rem', letterSpacing: '-0.01em',
+                      background: 'linear-gradient(135deg, #FFFFFF 0%, #D4D4D8 100%)', color: '#0F0F11',
+                      boxShadow: '0 0 0 1px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)',
+                      transition: 'all 0.2s ease',
+                      '&:hover': { background: 'linear-gradient(135deg, #F4F4F5 0%, #C4C4C8 100%)', transform: 'translateY(-1px)' },
+                      '&.Mui-disabled': { background: 'rgba(255,255,255,0.08)', color: '#52525B' },
+                    }}
+                  >
+                    {isSubmitting ? <CircularProgress size={16} sx={{ color: '#52525B' }} /> : 'Send reset link'}
+                  </Button>
                 </Box>
               )}
 
-              <Box mb={2.5}>
-                <Typography variant="caption" fontWeight="600" color="#71717A" sx={{ display: 'block', mb: 0.75, letterSpacing: '0.03em' }}>
-                  EMAIL
+              <Box sx={{ textAlign: 'center', mt: 3.5 }}>
+                <Typography variant="body2" color="#52525B">
+                  Remember your password?{' '}
+                  <Box
+                    component="span"
+                    onClick={() => { setIsForgotPassword(false); setForgotSuccess(false); setForgotEmail(''); setError(''); }}
+                    sx={{ fontWeight: 700, color: '#A1A1AA', cursor: 'pointer', transition: 'color 0.15s', '&:hover': { color: '#EDEDED' } }}
+                  >
+                    Sign in
+                  </Box>
                 </Typography>
-                <TextField
-                  required
-                  fullWidth
-                  type="email"
-                  placeholder="example@company.com"
-                  size="small"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  sx={fieldSx}
-                />
+              </Box>
+            </>
+          ) : (
+            /* ── Normal login / signup view ── */
+            <>
+              {/* Heading */}
+              <Box mb={4}>
+                <Typography variant="h4" fontWeight="800" color="#EDEDED" letterSpacing="-0.03em" mb={0.75}>
+                  {isLogin ? 'Welcome back' : 'Create account'}
+                </Typography>
+                <Typography variant="body2" color="#71717A">
+                  {isLogin
+                    ? 'Sign in to continue to your workspace.'
+                    : 'Get started — free forever for small teams.'}
+                </Typography>
               </Box>
 
-              <Box mb={isLogin ? 1.5 : 2.5}>
-                <Typography variant="caption" fontWeight="600" color="#71717A" sx={{ display: 'block', mb: 0.75, letterSpacing: '0.03em' }}>
-                  PASSWORD
-                </Typography>
-                <TextField
-                  required
-                  fullWidth
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  size="small"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          onClick={() => setShowPassword(!showPassword)}
-                          edge="end"
-                          size="small"
-                          sx={{ color: '#52525B', '&:hover': { color: '#A1A1AA' } }}
-                        >
-                          {showPassword
-                            ? <VisibilityOffOutlinedIcon fontSize="small" />
-                            : <VisibilityOutlinedIcon fontSize="small" />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
+              {/* Error */}
+              {error && (
+                <Alert
+                  severity="error"
+                  sx={{
+                    mb: 3,
+                    borderRadius: '10px',
+                    backgroundColor: 'rgba(239,68,68,0.08)',
+                    border: '1px solid rgba(239,68,68,0.2)',
+                    color: '#FCA5A5',
+                    '& .MuiAlert-icon': { color: '#F87171' },
                   }}
-                  sx={fieldSx}
-                />
+                >
+                  {error}
+                </Alert>
+              )}
+
+              {/* Form card */}
+              <Box
+                sx={{
+                  p: { xs: 3, sm: 3.5 },
+                  borderRadius: '16px',
+                  backgroundColor: 'rgba(255,255,255,0.025)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  backdropFilter: 'blur(12px)',
+                  boxShadow: '0 32px 64px -16px rgba(0,0,0,0.5)',
+                }}
+              >
+                {/* Google SSO */}
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  startIcon={<GoogleIcon sx={{ fontSize: '18px !important', color: '#DB4437' }} />}
+                  sx={{
+                    py: 1.25,
+                    borderRadius: '10px',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                    color: '#EDEDED',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    backgroundColor: 'rgba(255,255,255,0.03)',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: 'rgba(255,255,255,0.06)',
+                      borderColor: 'rgba(255,255,255,0.18)',
+                      boxShadow: 'none',
+                    },
+                  }}
+                >
+                  Continue with Google
+                </Button>
+
+                {/* Divider */}
+                <Box sx={{ display: 'flex', alignItems: 'center', my: 2.5 }}>
+                  <Divider sx={{ flexGrow: 1, borderColor: 'rgba(255,255,255,0.06)' }} />
+                  <Typography variant="caption" color="#3F3F46" sx={{ mx: 2, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                    or
+                  </Typography>
+                  <Divider sx={{ flexGrow: 1, borderColor: 'rgba(255,255,255,0.06)' }} />
+                </Box>
+
+                {/* Fields */}
+                <Box component="form" onSubmit={handleAuth}>
+                  {!isLogin && (
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2.5 }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="caption" fontWeight="600" color="#71717A" sx={{ display: 'block', mb: 0.75, letterSpacing: '0.03em' }}>
+                          FIRST NAME
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          placeholder="Jane"
+                          size="small"
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
+                          sx={fieldSx}
+                        />
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="caption" fontWeight="600" color="#71717A" sx={{ display: 'block', mb: 0.75, letterSpacing: '0.03em' }}>
+                          LAST NAME <Typography component="span" sx={{ fontSize: '0.65rem', opacity: 0.6 }}>(OPTIONAL)</Typography>
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          placeholder="Smith"
+                          size="small"
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                          sx={fieldSx}
+                        />
+                      </Box>
+                    </Box>
+                  )}
+
+                  <Box mb={2.5}>
+                    <Typography variant="caption" fontWeight="600" color="#71717A" sx={{ display: 'block', mb: 0.75, letterSpacing: '0.03em' }}>
+                      EMAIL
+                    </Typography>
+                    <TextField
+                      required
+                      fullWidth
+                      type="email"
+                      placeholder="example@company.com"
+                      size="small"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      sx={fieldSx}
+                    />
+                  </Box>
+
+                  <Box mb={isLogin ? 1.5 : 2.5}>
+                    <Typography variant="caption" fontWeight="600" color="#71717A" sx={{ display: 'block', mb: 0.75, letterSpacing: '0.03em' }}>
+                      PASSWORD
+                    </Typography>
+                    <TextField
+                      required
+                      fullWidth
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      size="small"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              onClick={() => setShowPassword(!showPassword)}
+                              edge="end"
+                              size="small"
+                              sx={{ color: '#52525B', '&:hover': { color: '#A1A1AA' } }}
+                            >
+                              {showPassword
+                                ? <VisibilityOffOutlinedIcon fontSize="small" />
+                                : <VisibilityOutlinedIcon fontSize="small" />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
+                      sx={fieldSx}
+                    />
+                  </Box>
+
+                  {isLogin && (
+                    <Box sx={{ textAlign: 'right', mb: 2.5 }}>
+                      <Typography
+                        variant="caption"
+                        fontWeight="600"
+                        onClick={() => { setIsForgotPassword(true); setError(''); }}
+                        sx={{
+                          color: '#A1A1AA',
+                          cursor: 'pointer',
+                          transition: 'color 0.15s',
+                          '&:hover': { color: '#EDEDED' },
+                        }}
+                      >
+                        Forgot password?
+                      </Typography>
+                    </Box>
+                  )}
+
+                  <Button
+                    type="submit"
+                    fullWidth
+                    variant="contained"
+                    disabled={isSubmitting}
+                    endIcon={!isSubmitting && <ArrowForwardIcon sx={{ fontSize: '16px !important' }} />}
+                    sx={{
+                      py: 1.35,
+                      borderRadius: '10px',
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      fontSize: '0.875rem',
+                      letterSpacing: '-0.01em',
+                      background: 'linear-gradient(135deg, #FFFFFF 0%, #D4D4D8 100%)',
+                      color: '#0F0F11',
+                      boxShadow: '0 0 0 1px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #F4F4F5 0%, #C4C4C8 100%)',
+                        boxShadow: '0 0 0 1px rgba(255,255,255,0.12), 0 12px 32px rgba(0,0,0,0.4)',
+                        transform: 'translateY(-1px)',
+                      },
+                      '&:active': { transform: 'translateY(0px)' },
+                      '&.Mui-disabled': {
+                        background: 'rgba(255,255,255,0.08)',
+                        color: '#52525B',
+                      },
+                    }}
+                  >
+                    {isSubmitting
+                      ? <CircularProgress size={16} sx={{ color: '#52525B' }} />
+                      : isLogin ? 'Sign in' : 'Create account'}
+                  </Button>
+                </Box>
               </Box>
 
-              {isLogin && (
-                <Box sx={{ textAlign: 'right', mb: 2.5 }}>
-                  <Typography
-                    variant="caption"
-                    fontWeight="600"
+              {/* Toggle */}
+              <Box sx={{ textAlign: 'center', mt: 3.5 }}>
+                <Typography variant="body2" color="#52525B">
+                  {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
+                  <Box
+                    component="span"
+                    onClick={() => { setIsLogin(!isLogin); setError(''); }}
                     sx={{
+                      fontWeight: 700,
                       color: '#A1A1AA',
                       cursor: 'pointer',
                       transition: 'color 0.15s',
                       '&:hover': { color: '#EDEDED' },
                     }}
                   >
-                    Forgot password?
-                  </Typography>
-                </Box>
-              )}
-
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                disabled={isSubmitting}
-                endIcon={!isSubmitting && <ArrowForwardIcon sx={{ fontSize: '16px !important' }} />}
-                sx={{
-                  py: 1.35,
-                  borderRadius: '10px',
-                  textTransform: 'none',
-                  fontWeight: 700,
-                  fontSize: '0.875rem',
-                  letterSpacing: '-0.01em',
-                  background: 'linear-gradient(135deg, #FFFFFF 0%, #D4D4D8 100%)',
-                  color: '#0F0F11',
-                  boxShadow: '0 0 0 1px rgba(255,255,255,0.08), 0 8px 24px rgba(0,0,0,0.3)',
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    background: 'linear-gradient(135deg, #F4F4F5 0%, #C4C4C8 100%)',
-                    boxShadow: '0 0 0 1px rgba(255,255,255,0.12), 0 12px 32px rgba(0,0,0,0.4)',
-                    transform: 'translateY(-1px)',
-                  },
-                  '&:active': { transform: 'translateY(0px)' },
-                  '&.Mui-disabled': {
-                    background: 'rgba(255,255,255,0.08)',
-                    color: '#52525B',
-                  },
-                }}
-              >
-                {isSubmitting
-                  ? <CircularProgress size={16} sx={{ color: '#52525B' }} />
-                  : isLogin ? 'Sign in' : 'Create account'}
-              </Button>
-            </Box>
-          </Box>
-
-          {/* Toggle */}
-          <Box sx={{ textAlign: 'center', mt: 3.5 }}>
-            <Typography variant="body2" color="#52525B">
-              {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
-              <Box
-                component="span"
-                onClick={() => { setIsLogin(!isLogin); setError(''); }}
-                sx={{
-                  fontWeight: 700,
-                  color: '#A1A1AA',
-                  cursor: 'pointer',
-                  transition: 'color 0.15s',
-                  '&:hover': { color: '#EDEDED' },
-                }}
-              >
-                {isLogin ? 'Sign up' : 'Sign in'}
+                    {isLogin ? 'Sign up' : 'Sign in'}
+                  </Box>
+                </Typography>
               </Box>
-            </Typography>
-          </Box>
 
-          {/* Terms  */}
-          <Typography variant="caption" color="#3F3F46" display="block" textAlign="center" mt={3} lineHeight={1.6}>
-            By continuing, you agree to our{' '}
-            <Box component="span" sx={{ color: '#52525B', cursor: 'pointer', '&:hover': { color: '#A1A1AA' } }}>Terms of Service</Box>
-            {' '}and{' '}
-            <Box component="span" sx={{ color: '#52525B', cursor: 'pointer', '&:hover': { color: '#A1A1AA' } }}>Privacy Policy</Box>.
-          </Typography>
+              {/* Terms  */}
+              <Typography variant="caption" color="#3F3F46" display="block" textAlign="center" mt={3} lineHeight={1.6}>
+                By continuing, you agree to our{' '}
+                <Box component="span" sx={{ color: '#52525B', cursor: 'pointer', '&:hover': { color: '#A1A1AA' } }}>Terms of Service</Box>
+                {' '}and{' '}
+                <Box component="span" sx={{ color: '#52525B', cursor: 'pointer', '&:hover': { color: '#A1A1AA' } }}>Privacy Policy</Box>.
+              </Typography>
+            </>
+          )}
         </Box>
       </Box>
     </Box>

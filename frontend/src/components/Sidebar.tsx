@@ -30,6 +30,9 @@ import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import MenuIcon from '@mui/icons-material/Menu';
+import SupportAgentIcon from '@mui/icons-material/SupportAgent';
+
+const SUPPORT_EMAIL = 'support@nexus.com';
 
 const EXPANDED_WIDTH = 240;
 const COLLAPSED_WIDTH = 56;
@@ -49,37 +52,52 @@ export function Sidebar() {
   const collapsed = isSmallScreen || manualCollapsed;
   const sidebarWidth = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
 
-  const navItems = [
-    { 
-      text: 'Dashboard', 
-      icon: <DashboardOutlinedIcon />, 
-      path: '/dashboard', 
-      active: location.pathname === '/dashboard' || location.pathname === '/' 
+  const isSupportUser = user?.email === SUPPORT_EMAIL;
+
+  const navItems = isSupportUser ? [
+    {
+      text: 'Settings',
+      icon: <SettingsOutlinedIcon />,
+      path: '/settings',
+      active: location.pathname.startsWith('/settings'),
     },
-    { 
-      text: 'Projects', 
-      icon: <FolderOutlinedIcon />, 
-      path: '/projects', 
-      active: location.pathname.startsWith('/projects') 
+    {
+      text: 'Support',
+      icon: <SupportAgentIcon />,
+      path: '/support',
+      active: location.pathname.startsWith('/support'),
     },
-    { 
-      text: 'Tasks', 
-      icon: <CheckBoxOutlinedIcon />, 
-      path: '/tasks', 
-      active: location.pathname.startsWith('/tasks') 
+  ] : [
+    {
+      text: 'Dashboard',
+      icon: <DashboardOutlinedIcon />,
+      path: '/dashboard',
+      active: location.pathname === '/dashboard' || location.pathname === '/'
     },
-    { 
-      text: 'Activity', 
-      icon: <NotificationsOutlinedIcon />, 
-      path: '/activity', 
-      active: location.pathname.startsWith('/activity') 
+    {
+      text: 'Projects',
+      icon: <FolderOutlinedIcon />,
+      path: '/projects',
+      active: location.pathname.startsWith('/projects')
     },
-    { 
-      text: 'Settings', 
-      icon: <SettingsOutlinedIcon />, 
-      path: '/settings', 
-      active: location.pathname.startsWith('/settings') 
-    }
+    {
+      text: 'Tasks',
+      icon: <CheckBoxOutlinedIcon />,
+      path: '/tasks',
+      active: location.pathname.startsWith('/tasks')
+    },
+    {
+      text: 'Activity',
+      icon: <NotificationsOutlinedIcon />,
+      path: '/activity',
+      active: location.pathname.startsWith('/activity')
+    },
+    {
+      text: 'Settings',
+      icon: <SettingsOutlinedIcon />,
+      path: '/settings',
+      active: location.pathname.startsWith('/settings')
+    },
   ];
 
   if (isSmallScreen) {

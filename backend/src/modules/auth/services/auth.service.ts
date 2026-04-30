@@ -18,6 +18,8 @@ import { AuditLog } from '../../../common/entities/audit-log.entity';
 import { OrganizationRole } from '../../../common/enums';
 import { OrganizationsService } from '@/modules/organizations/services/organizations.service';
 import { OrganizationInvitesService } from '@/modules/organizations/services/organization-invites.service';
+import { EmailService } from '@/modules/email/services/email.service';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -26,6 +28,7 @@ export class AuthService {
     private usersService: UsersService,
     private organizationsService: OrganizationsService,
     private organizationInvitesService: OrganizationInvitesService,
+    private emailService: EmailService,
     @InjectRepository(UserOrganizationMembership)
     private membershipRepository: Repository<UserOrganizationMembership>,
     @InjectRepository(AuditLog)
@@ -213,9 +216,11 @@ export class AuthService {
     const payload = {
       sub: user.id,
       email: user.email,
-      role: user.role, // Global role
-      selectedOrgId: selectedOrgId, // Current workspace
-      orgRole: membership.role, // Role within selectedOrgId
+      firstName: user.firstName ?? '',
+      lastName: user.lastName ?? '',
+      role: user.role,
+      selectedOrgId: selectedOrgId,
+      orgRole: membership.role,
     };
 
     return this.jwtService.sign(payload);
@@ -363,6 +368,42 @@ export class AuthService {
     if (!isValid) throw new BadRequestException('Invalid 2FA code');
     await this.usersService.updateRaw(userId, { twoFactorEnabled: false, twoFactorSecret: null });
     return { enabled: false };
+  }
+
+  /** Send a password-reset link to the user's email */
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) return; // Silently ignore unknown emails
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiry = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+    await this.usersService.updateRaw(user.id, { passwordResetToken: token, passwordResetExpiry: expiry });
+
+    const resetUrl = `${process.env.FRONTEND_URL}/auth?mode=reset&token=${token}`;
+    try {
+      await this.emailService.sendEmail(
+        email,
+        'reset-password',
+        { firstName: user.firstName, resetUrl },
+        'Reset your Nexus password',
+      );
+    } catch {
+      // Email delivery failed — log the link so dev can test manually
+      console.log(`[DEV] Password reset link for ${email}: ${resetUrl}`);
+    }
+  }
+
+  /** Validate reset token and set the new password */
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const user = await this.usersService.findByResetToken(token);
+    if (!user || !user.passwordResetExpiry || new Date(user.passwordResetExpiry) < new Date()) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+    await this.usersService.updateRaw(user.id, {
+      password: newPassword,
+      passwordResetToken: null,
+      passwordResetExpiry: null,
+    });
   }
 
   /** Hard-delete the current organization and all its data (Danger Zone) */

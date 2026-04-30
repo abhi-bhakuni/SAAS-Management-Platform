@@ -16,6 +16,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { SandboxModule } from './modules/sandbox/sandbox.module';
 import { ActivityModule } from './modules/activity/activity.module';
+import { ChatModule } from './modules/chat/chat.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { ActivityModule } from './modules/activity/activity.module';
     HealthModule,
     SandboxModule,
     ActivityModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [

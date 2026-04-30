@@ -9,6 +9,7 @@ import { UsersModule } from '../users/users.module';
 import { UserOrganizationMembership } from '../users/entities/user-organization-membership.entity';
 import { AuditLog } from '../../common/entities/audit-log.entity';
 import { OrganizationsModule } from '../organizations/organizations.module';
+import { EmailModule } from '../email/email.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { OrganizationsModule } from '../organizations/organizations.module';
       },
     }),
     UsersModule,
+    EmailModule,
     forwardRef(() => OrganizationsModule),
   ],
   controllers: [AuthController],

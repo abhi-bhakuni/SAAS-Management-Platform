@@ -7,9 +7,11 @@ import { OrganizationRole } from '../../../common/enums';
 export interface JwtPayload {
   sub: string;
   email: string;
+  firstName?: string;
+  lastName?: string;
   role: OrganizationRole;
-  selectedOrgId: string; // Currently active workspace
-  orgRole: OrganizationRole; // Role within selectedOrgId
+  selectedOrgId: string;
+  orgRole: OrganizationRole;
   iat: number;
   exp: number;
 }
@@ -32,9 +34,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       id: payload.sub,
       email: payload.email,
+      firstName: payload.firstName ?? '',
+      lastName: payload.lastName ?? '',
       role: payload.role,
-      selectedOrgId: payload.selectedOrgId, // Currently active workspace
-      orgRole: payload.orgRole, // Role within selectedOrgId
+      selectedOrgId: payload.selectedOrgId,
+      orgRole: payload.orgRole,
     };
   }
 }

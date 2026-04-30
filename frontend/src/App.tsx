@@ -10,6 +10,8 @@ import { Auth } from './pages/Auth';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { ChatWidget } from './components/ChatWidget';
+import { Support } from './pages/Support';
 
 // Custom modern dark theme for professional SaaS look
 const theme = createTheme({
@@ -105,7 +107,8 @@ function App() {
             <Route path="/tasks" element={<GlobalTasks />} />
             <Route path="/activity" element={<ActivityPage />} />
             <Route path="/settings" element={<Settings />} />
-            
+            <Route path="/support" element={<Support />} />
+
             {/* Redirect root to dashboard */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
@@ -114,6 +117,7 @@ function App() {
               {/* Add strictly private routes here */}
             </Route>
           </Routes>
+          <ChatWidget />
         </Router>
       </ToastProvider>
       </AuthProvider>

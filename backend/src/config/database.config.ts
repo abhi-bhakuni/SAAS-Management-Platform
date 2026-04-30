@@ -10,6 +10,8 @@ import { Project } from '../modules/projects/entities/project.entity';
 import { Task } from '../modules/projects/entities/task.entity';
 import { TaskStatusHistory } from '../modules/projects/entities/task-status-history.entity';
 import { SubscriptionPlan } from '@/modules/subscriptions/entities/subscription-plan.entity';
+import { ChatConversation } from '../modules/chat/entities/chat-conversation.entity';
+import { ChatMessage } from '../modules/chat/entities/chat-message.entity';
 import { TypeOrmCustomLogger } from '@/common/loggers/typeorm-logger';
 
 dotenv.config();
@@ -32,6 +34,8 @@ export const dataSourceOptions: DataSourceOptions = {
     Project,
     Task,
     TaskStatusHistory,
+    ChatConversation,
+    ChatMessage,
   ],
   migrations: ['dist/migrations/*.js'],
   synchronize: process.env.NODE_ENV === 'development',

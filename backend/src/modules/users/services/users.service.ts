@@ -245,6 +245,16 @@ export class UsersService {
       .getOne();
   }
 
+  /** Find a user by their password-reset token (select: false field) */
+  async findByResetToken(token: string) {
+    return this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.passwordResetToken')
+      .addSelect('user.passwordResetExpiry')
+      .where('user.passwordResetToken = :token', { token })
+      .getOne();
+  }
+
   private generateVerificationToken(): string {
     return Math.random().toString(36).substr(2) + Date.now().toString(36);
   }

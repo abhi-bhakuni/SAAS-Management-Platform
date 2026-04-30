@@ -65,6 +65,12 @@ export class User {
   @Column({ type: 'varchar', nullable: true, select: false })
   twoFactorSecret?: string;
 
+  @Column({ type: 'varchar', nullable: true, select: false })
+  passwordResetToken?: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  passwordResetExpiry?: string;
+
   @CreateDateColumn()
   createdAt!: Date;
 
