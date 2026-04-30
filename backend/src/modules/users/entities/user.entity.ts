@@ -59,6 +59,12 @@ export class User {
   @Column({ type: 'varchar', nullable: true })
   lockUntil?: string;
 
+  @Column({ type: 'boolean', default: false })
+  twoFactorEnabled!: boolean;
+
+  @Column({ type: 'varchar', nullable: true, select: false })
+  twoFactorSecret?: string;
+
   @CreateDateColumn()
   createdAt!: Date;
 

@@ -138,11 +138,41 @@ export const organizationApi = {
 
 export const billingApi = {
   getMySubscription: async () => {
-    if (isSandboxMode()) {
-      return { subscription: null, paymentMethod: null };
-    }
-
+    if (isSandboxMode()) return { subscription: null, paymentMethod: null };
     const response = await api.get('/subscriptions/me');
+    return response.data;
+  },
+
+  getPlans: async () => {
+    if (isSandboxMode()) return { plans: [] };
+    const response = await api.get('/subscriptions/plans');
+    return response.data; // { plans: SubscriptionPlan[] }
+  },
+
+  // Creates a Stripe Checkout session and returns { url, sessionId }.
+  // Redirect the browser to `url` to send the user to Stripe's hosted payment page.
+  createCheckoutSession: async (planId: string) => {
+    if (isSandboxMode()) throw new Error('Checkout is not available in Sandbox mode.');
+    const response = await api.post('/subscriptions/create-checkout-session', { planId });
+    return response.data as { url: string; sessionId: string };
+  },
+
+  // Creates a Stripe Billing Portal session and returns { url }.
+  // Redirect the browser to `url` so the user can manage/cancel their subscription.
+  createPortalSession: async () => {
+    if (isSandboxMode()) throw new Error('Billing portal is not available in Sandbox mode.');
+    const response = await api.post('/subscriptions/create-portal-session', {});
+    return response.data as { url: string };
+  },
+
+  // Syncs a subscription record from a completed Checkout session (handles missed webhooks).
+  syncCheckoutSession: async (sessionId: string) => {
+    const response = await api.post('/subscriptions/sync-checkout-session', { sessionId });
+    return response.data as { synced: boolean };
+  },
+
+  cancelSubscription: async () => {
+    const response = await api.post('/subscriptions/cancel', {});
     return response.data;
   },
 };
@@ -231,6 +261,38 @@ export const activityApi = {
     const response = await api.get('/activity', { params: projectId ? { projectId } : undefined });
     return response.data;
   }
+};
+
+export const securityApi = {
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    const response = await api.post('/auth/change-password', { currentPassword, newPassword });
+    return response.data;
+  },
+  getLoginActivity: async () => {
+    const response = await api.get('/auth/login-activity');
+    return response.data as { id: string; ipAddress: string; userAgent: string; createdAt: string }[];
+  },
+  generate2FA: async () => {
+    const response = await api.post('/auth/2fa/generate');
+    return response.data as { qrCodeUrl: string; secret: string };
+  },
+  enable2FA: async (token: string) => {
+    const response = await api.post('/auth/2fa/enable', { token });
+    return response.data as { enabled: boolean };
+  },
+  disable2FA: async (token: string) => {
+    const response = await api.post('/auth/2fa/disable', { token });
+    return response.data as { enabled: boolean };
+  },
+  closeOrganization: async () => {
+    const response = await api.delete('/auth/close-organization');
+    return response.data;
+  },
+
+  deleteAccount: async () => {
+    const response = await api.delete('/auth/delete-account');
+    return response.data;
+  },
 };
 
 export default api;

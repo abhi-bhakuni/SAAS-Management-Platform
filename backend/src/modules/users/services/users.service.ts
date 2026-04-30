@@ -159,7 +159,7 @@ export class UsersService {
     );
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Current password is incorrect');
+      throw new BadRequestException('Current password is incorrect');
     }
 
     user.password = changePasswordDto.newPassword;
@@ -229,6 +229,20 @@ export class UsersService {
     // Keeping for backward compatibility but always returns 0
     // Use UserOrganizationService.countOrgMembers() instead
     return 0;
+  }
+
+  /** Update arbitrary raw fields (e.g. twoFactorSecret, twoFactorEnabled) without DTO restrictions */
+  async updateRaw(id: string, fields: Partial<Record<string, any>>) {
+    await this.userRepository.update(id, fields);
+  }
+
+  /** Load a user including twoFactorSecret (select: false field) */
+  async findOneWithSecret(id: string) {
+    return this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.twoFactorSecret')
+      .where('user.id = :id', { id })
+      .getOne();
   }
 
   private generateVerificationToken(): string {

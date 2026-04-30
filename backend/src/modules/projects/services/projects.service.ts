@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Project } from '../entities/project.entity';
 import { Task } from '../entities/task.entity';
 import { CreateProjectDto, UpdateProjectDto } from '../dtos';
 import { ActivityService } from '../../activity/services/activity.service';
+import { SubscriptionsService } from '../../subscriptions/services/subscriptions.service';
 
 @Injectable()
 export class ProjectsService {
@@ -14,6 +15,7 @@ export class ProjectsService {
     @InjectRepository(Task)
     private readonly taskRepository: Repository<Task>,
     private readonly activityService: ActivityService,
+    private readonly subscriptionsService: SubscriptionsService,
   ) {}
 
   /**
@@ -83,6 +85,14 @@ export class ProjectsService {
     createdByUserId: string,
     dto: CreateProjectDto,
   ) {
+    const limits = await this.subscriptionsService.getOrgPlanLimits(organizationId);
+    const currentCount = await this.projectRepository.count({ where: { organizationId } });
+    if (currentCount >= limits.projects) {
+      throw new BadRequestException(
+        `Project limit reached (${limits.projects}). Upgrade your plan to create more projects.`,
+      );
+    }
+
     const project = this.projectRepository.create({
       ...dto,
       organizationId,

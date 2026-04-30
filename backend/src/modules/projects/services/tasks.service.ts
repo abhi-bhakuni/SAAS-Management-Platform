@@ -14,6 +14,7 @@ import { TasksGateway } from '../../websocket/tasks.gateway';
 import { CreateTaskDto, UpdateTaskDto, UpdateTaskStatusDto } from '../dtos';
 import { TaskStatus } from '../../../common/enums';
 import { ActivityService } from '../../activity/services/activity.service';
+import { SubscriptionsService } from '../../subscriptions/services/subscriptions.service';
 
 @Injectable()
 export class TasksService {
@@ -29,6 +30,7 @@ export class TasksService {
     private readonly membershipRepository: Repository<UserOrganizationMembership>,
     private readonly tasksGateway: TasksGateway,
     private readonly activityService: ActivityService,
+    private readonly subscriptionsService: SubscriptionsService,
   ) {}
 
   /**
@@ -127,6 +129,14 @@ export class TasksService {
 
     if (!project) {
       throw new NotFoundException(`Project with ID ${projectId} not found`);
+    }
+
+    const limits = await this.subscriptionsService.getOrgPlanLimits(project.organizationId);
+    const currentCount = await this.taskRepository.count({ where: { projectId } });
+    if (currentCount >= limits.tasks) {
+      throw new BadRequestException(
+        `Task limit reached (${limits.tasks}). Upgrade your plan to create more tasks.`,
+      );
     }
 
     const task = this.taskRepository.create({

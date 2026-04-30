@@ -32,6 +32,10 @@ export class WebhooksController {
 
       // Handle different event types
       switch (event.type) {
+        case 'checkout.session.completed':
+          await this.handleCheckoutSessionCompleted(event.data.object);
+          break;
+
         case 'customer.subscription.created':
         case 'customer.subscription.updated':
           await this.handleSubscriptionUpdate(event.data.object);
@@ -39,6 +43,10 @@ export class WebhooksController {
 
         case 'customer.subscription.deleted':
           await this.handleSubscriptionDeleted(event.data.object);
+          break;
+
+        case 'customer.subscription.trial_will_end':
+          await this.handleTrialWillEnd(event.data.object);
           break;
 
         case 'invoice.payment_succeeded':
@@ -49,8 +57,8 @@ export class WebhooksController {
           await this.handlePaymentFailed(event.data.object);
           break;
 
-        case 'customer.subscription.trial_will_end':
-          await this.handleTrialWillEnd(event.data.object);
+        case 'entitlements.active_entitlement_summary.updated':
+          this.logger.log(`Active entitlement summary updated for customer: ${event.data.object.customer}`);
           break;
 
         default:
@@ -61,6 +69,15 @@ export class WebhooksController {
     } catch (error) {
       this.logger.error('Error processing Stripe webhook:', error);
       throw new BadRequestException('Webhook processing failed');
+    }
+  }
+
+  private async handleCheckoutSessionCompleted(session: any) {
+    try {
+      await this.subscriptionsService.handleCheckoutSessionCompleted(session);
+      this.logger.log(`Checkout session completed: ${session.id}`);
+    } catch (error) {
+      this.logger.error('Error handling checkout session completed:', error);
     }
   }
 

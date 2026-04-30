@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { authApi } from '../services/api';
 
-const hashPassword = async (password: string) => {
+export const hashPassword = async (password: string) => {
   if (!password) return password;
   const msgBuffer = new TextEncoder().encode(password);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -10,7 +10,7 @@ const hashPassword = async (password: string) => {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
-const validatePassword = (password: string): { isValid: boolean; message: string } => {
+export const validatePassword = (password: string): { isValid: boolean; message: string } => {
   if (
     !password || 
     password.length < 8 || 
@@ -34,6 +34,9 @@ interface User {
   selectedOrgId?: string;
   orgRole?: string;
   bio?: string;
+  name?: string;
+  twoFactorEnabled?: boolean;
+  lastLoginAt?: string | null;
 }
 
 interface AuthContextType {

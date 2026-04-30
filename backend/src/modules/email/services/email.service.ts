@@ -8,7 +8,7 @@ export class EmailService {
   constructor(private mailerService: MailerService) {}
 
   private getFrontendBaseUrl(): string {
-    return process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173';
+    return process.env.FRONTEND_URL || process.env.APP_URL || '';
   }
 
   async sendInviteEmail(

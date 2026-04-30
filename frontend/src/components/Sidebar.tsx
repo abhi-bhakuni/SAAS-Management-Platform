@@ -40,7 +40,7 @@ export function Sidebar() {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, user } = useAuth();
 
   const [manualCollapsed, setManualCollapsed] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
@@ -125,7 +125,7 @@ export function Sidebar() {
           </Box>
 
           <Typography variant="body2" fontWeight={600} color="text.primary" noWrap sx={{ flexGrow: 1 }}>
-            Acme Workspace
+            {user?.name ?? 'Nexus'}
           </Typography>
 
           <IconButton
@@ -236,7 +236,7 @@ export function Sidebar() {
           minHeight: 40,
         }}
       >
-        <Tooltip title={collapsed ? 'Acme Workspace' : ''} placement="right">
+        <Tooltip title={collapsed ? (user?.name ?? 'Nexus') : ''} placement="right">
           <Box
             sx={{
               width: 28,
@@ -259,7 +259,7 @@ export function Sidebar() {
         {!collapsed && (
           <>
             <Typography variant="body2" fontWeight="600" color="text.primary" noWrap>
-              Acme Workspace
+              {user?.name ?? 'Nexus'}
             </Typography>
             {!isAuthenticated && (
               <Chip

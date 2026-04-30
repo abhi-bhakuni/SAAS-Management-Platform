@@ -169,7 +169,7 @@ export function Auth() {
             <LayersOutlinedIcon sx={{ fontSize: 18, color: '#0F0F11' }} />
           </Box>
           <Typography fontWeight="700" fontSize="1rem" color="#EDEDED" letterSpacing="-0.02em">
-            AcmeCorp
+            Nexus
           </Typography>
         </Box>
 
@@ -207,7 +207,7 @@ export function Auth() {
           border: '1px solid rgba(255,255,255,0.06)',
         }}>
           <Typography variant="body2" color="#A1A1AA" lineHeight={1.7} mb={1.5} fontStyle="italic">
-            "AcmeCorp completely transformed how our team manages sprints. We ship 3× faster now."
+            "Nexus completely transformed how our team manages sprints. We ship 3× faster now."
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Box sx={{
@@ -215,11 +215,11 @@ export function Auth() {
               background: 'linear-gradient(135deg, #60A5FA, #C084FC)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <Typography fontSize="0.7rem" fontWeight="700" color="#0F0F11">S</Typography>
+              <Typography fontSize="0.7rem" fontWeight="700" color="#0F0F11">A</Typography>
             </Box>
             <Box>
-              <Typography variant="caption" fontWeight="700" color="#EDEDED" display="block">Sarah Chen</Typography>
-              <Typography variant="caption" color="#52525B">Head of Engineering, Nova Labs</Typography>
+              <Typography variant="caption" fontWeight="700" color="#EDEDED" display="block">Abhishek Bhakuni</Typography>
+              <Typography variant="caption" color="#52525B">Head of Engineering, Finmo</Typography>
             </Box>
           </Box>
         </Box>
@@ -246,7 +246,7 @@ export function Auth() {
             }}>
               <LayersOutlinedIcon sx={{ fontSize: 16, color: '#0F0F11' }} />
             </Box>
-            <Typography fontWeight="700" fontSize="1rem" color="#EDEDED">AcmeCorp</Typography>
+            <Typography fontWeight="700" fontSize="1rem" color="#EDEDED">Nexus</Typography>
           </Box>
 
           {/* Heading */}

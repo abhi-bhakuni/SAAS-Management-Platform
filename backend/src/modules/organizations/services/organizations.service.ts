@@ -11,6 +11,7 @@ import { Project } from '../../projects/entities/project.entity';
 import { Task } from '../../projects/entities/task.entity';
 import { TaskStatus } from '../../../common/enums';
 import { AuditLog } from '../../../common/entities/audit-log.entity';
+import { Subscription } from '../../subscriptions/entities/subscription.entity';
 
 @Injectable()
 export class OrganizationsService {
@@ -25,6 +26,8 @@ export class OrganizationsService {
     private readonly taskRepository: Repository<Task>,
     @InjectRepository(AuditLog)
     private readonly auditLogRepository: Repository<AuditLog>,
+    @InjectRepository(Subscription)
+    private readonly subscriptionRepository: Repository<Subscription>,
   ) {}
 
   async findAll(page = 1, limit = 10) {
@@ -127,6 +130,27 @@ export class OrganizationsService {
       throw new NotFoundException(`Organization with ID ${id} not found`);
     }
 
+    // Collect all member user IDs before memberships are cascade-deleted
+    const memberships = await this.membershipRepository.find({
+      where: { organizationId: id },
+      select: ['userId'],
+    });
+    const memberUserIds = memberships.map((m) => m.userId);
+
+    // Delete subscriptions belonging to org members (no organizationId FK exists on subscriptions)
+    if (memberUserIds.length > 0) {
+      const { In } = await import('typeorm');
+      await this.subscriptionRepository.delete({ userId: In(memberUserIds) });
+    }
+
+    // Delete audit log entries for this org
+    await this.auditLogRepository
+      .createQueryBuilder()
+      .delete()
+      .where('organizationId = :id', { id })
+      .execute();
+
+    // Deleting the org cascades: projects → tasks → task_status_history, memberships
     await this.organizationRepository.remove(organization);
     return { message: 'Organization deleted successfully' };
   }

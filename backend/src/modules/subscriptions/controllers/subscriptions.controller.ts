@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body, Param, UseGuards, Request, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SubscriptionsService, CreateSubscriptionDto } from '../services/subscriptions.service';
 import { SubscriptionPlansService } from '../services/subscription-plans.service';
@@ -11,6 +12,7 @@ export class SubscriptionsController {
     private readonly subscriptionsService: SubscriptionsService,
     private readonly subscriptionPlansService: SubscriptionPlansService,
     private readonly stripeService: StripeService,
+    private readonly configService: ConfigService,
   ) {}
 
   // Get current user's active subscription
@@ -107,6 +109,43 @@ export class SubscriptionsController {
     const count = parseInt(currentCount, 10);
     const withinLimits = await this.subscriptionsService.checkPlanLimits(userId, resourceType, count);
     return { withinLimits, resourceType, currentCount: count };
+  }
+
+  // Create a Stripe Checkout hosted session — redirects user to Stripe's payment page
+  @Post('create-checkout-session')
+  async createCheckoutSession(
+    @Body() body: { planId: string; successUrl?: string; cancelUrl?: string },
+    @Request() req,
+  ) {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') ?? '';
+    const successUrl = body.successUrl ?? `${frontendUrl}/settings?checkout=success&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = body.cancelUrl ?? `${frontendUrl}/settings?checkout=canceled`;
+    return this.subscriptionsService.createCheckoutSession(req.user.id, body.planId, successUrl, cancelUrl);
+  }
+
+  // Sync subscription from a completed Stripe Checkout session (fallback for local dev / missed webhooks)
+  @Post('sync-checkout-session')
+  async syncCheckoutSession(@Body() body: { sessionId: string }, @Request() req) {
+    if (!body.sessionId) {
+      throw new BadRequestException('sessionId is required');
+    }
+    const session = await this.stripeService.retrieveCheckoutSession(body.sessionId);
+    if (session.payment_status !== 'paid' && session.status !== 'complete') {
+      throw new BadRequestException('Checkout session is not yet complete');
+    }
+    await this.subscriptionsService.handleCheckoutSessionCompleted(session);
+    return { synced: true };
+  }
+
+  // Create a Stripe Billing Portal session — lets user manage/cancel subscription themselves
+  @Post('create-portal-session')
+  async createPortalSession(
+    @Body() body: { returnUrl?: string },
+    @Request() req,
+  ) {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') ?? '';
+    const returnUrl = body.returnUrl ?? `${frontendUrl}/settings`;
+    return this.subscriptionsService.createBillingPortalSession(req.user.id, returnUrl);
   }
 
   // Get available subscription plans

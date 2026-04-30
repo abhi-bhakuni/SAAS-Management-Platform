@@ -2,8 +2,9 @@ import { Injectable, Logger, BadRequestException, NotFoundException } from '@nes
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Subscription, SubscriptionStatus } from '../entities/subscription.entity';
-import { SubscriptionPlan } from '../entities/subscription-plan.entity';
 import { User } from '../../users/entities/user.entity';
+import { UserOrganizationMembership } from '../../users/entities/user-organization-membership.entity';
+import { OrganizationRole } from '../../../common/enums';
 import { StripeService } from './stripe.service';
 import { SubscriptionPlansService } from './subscription-plans.service';
 
@@ -27,6 +28,8 @@ export class SubscriptionsService {
     private subscriptionRepository: Repository<Subscription>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(UserOrganizationMembership)
+    private membershipRepository: Repository<UserOrganizationMembership>,
     private stripeService: StripeService,
     private subscriptionPlansService: SubscriptionPlansService,
   ) {}
@@ -203,6 +206,121 @@ export class SubscriptionsService {
 
     await this.subscriptionRepository.save(subscription);
     this.logger.log(`Updated subscription ${subscription.id} from webhook`);
+  }
+
+  // Create a Stripe Checkout hosted session for a plan upgrade
+  async createCheckoutSession(userId: string, planId: string, successUrl: string, cancelUrl: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const plan = await this.subscriptionPlansService.findOne(planId);
+    if (!plan) throw new NotFoundException('Subscription plan not found');
+    if (!plan.stripePriceId) throw new BadRequestException('This plan has no associated Stripe price');
+
+    try {
+      const customer = await this.stripeService.createOrRetrieveCustomer(user.email, user.getFullName());
+      const session = await this.stripeService.createCheckoutSession(
+        customer.id,
+        plan.stripePriceId,
+        successUrl,
+        cancelUrl,
+        { userId, planId },
+      );
+      return { url: session.url, sessionId: session.id };
+    } catch (error) {
+      this.logger.error('Error creating checkout session:', error);
+      throw new BadRequestException('Failed to create checkout session');
+    }
+  }
+
+  // Create a Stripe Billing Portal session for self-service management
+  async createBillingPortalSession(userId: string, returnUrl: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    try {
+      // Use the customer ID from the most recent subscription; create one if none exists
+      const subscription = await this.subscriptionRepository.findOne({
+        where: { userId },
+        order: { createdAt: 'DESC' },
+      });
+
+      let customerId: string;
+      if (subscription?.stripeCustomerId) {
+        customerId = subscription.stripeCustomerId;
+      } else {
+        const customer = await this.stripeService.createOrRetrieveCustomer(user.email, user.getFullName());
+        customerId = customer.id;
+      }
+
+      const session = await this.stripeService.createBillingPortalSession(customerId, returnUrl);
+      return { url: session.url };
+    } catch (error) {
+      this.logger.error('Error creating billing portal session:', error);
+      throw new BadRequestException('Failed to create billing portal session');
+    }
+  }
+
+  // Sync local subscription record from a completed Checkout session
+  async handleCheckoutSessionCompleted(session: any) {
+    const { userId, planId } = session.metadata ?? {};
+    if (!userId || !planId) {
+      this.logger.warn('Checkout session missing userId/planId metadata');
+      return;
+    }
+
+    const stripeSubscription = session.subscription as any;
+    if (!stripeSubscription) return;
+
+    // Upsert: update existing INCOMPLETE record or create a fresh one
+    let subscription = await this.subscriptionRepository.findOne({
+      where: { userId, subscriptionPlanId: planId },
+    });
+
+    if (!subscription) {
+      subscription = this.subscriptionRepository.create({ userId, subscriptionPlanId: planId });
+    }
+
+    subscription.stripeCustomerId = session.customer;
+    subscription.stripeSubscriptionId = typeof stripeSubscription === 'string' ? stripeSubscription : stripeSubscription.id;
+    subscription.status = this.mapStripeStatus(stripeSubscription.status ?? 'active');
+    if (stripeSubscription.current_period_start) {
+      subscription.currentPeriodStart = new Date(stripeSubscription.current_period_start * 1000);
+      subscription.currentPeriodEnd = new Date(stripeSubscription.current_period_end * 1000);
+    }
+
+    await this.subscriptionRepository.save(subscription);
+    this.logger.log(`Subscription synced from checkout session ${session.id}`);
+  }
+
+  // Get plan limits for an organization (based on the org admin's active subscription)
+  async getOrgPlanLimits(orgId: string): Promise<{ users: number; projects: number; tasks: number }> {
+    const freePlan = await this.subscriptionPlansService.getFreePlan();
+    const freeLimits = {
+      users: freePlan?.limits?.['users'] ?? 5,
+      projects: freePlan?.limits?.['projects'] ?? 3,
+      tasks: freePlan?.limits?.['tasks'] ?? 20,
+    };
+
+    const adminMembership = await this.membershipRepository.findOne({
+      where: { organizationId: orgId, role: OrganizationRole.ADMIN },
+    });
+
+    if (!adminMembership) return freeLimits;
+
+    const subscription = await this.subscriptionRepository.findOne({
+      where: { userId: adminMembership.userId, status: SubscriptionStatus.ACTIVE },
+      relations: ['subscriptionPlan'],
+    });
+
+    if (!subscription?.subscriptionPlan?.limits) return freeLimits;
+
+    const planLimits = subscription.subscriptionPlan.limits;
+    return {
+      users: planLimits['users'] ?? freeLimits.users,
+      projects: planLimits['projects'] ?? freeLimits.projects,
+      tasks: planLimits['tasks'] ?? freeLimits.tasks,
+    };
   }
 
   // Check if user has access to a feature

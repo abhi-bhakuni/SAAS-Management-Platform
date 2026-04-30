@@ -14,6 +14,7 @@ import { User } from '../../users/entities/user.entity';
 import { UsersService } from '../../users/services/users.service';
 import { UserOrganizationService } from './user-organization.service';
 import { EmailService } from '../../email/services/email.service';
+import { SubscriptionsService } from '../../subscriptions/services/subscriptions.service';
 import {
   CreateInviteDto,
   InviteResponseDto,
@@ -36,6 +37,7 @@ export class OrganizationInvitesService {
     private readonly usersService: UsersService,
     private readonly userOrgService: UserOrganizationService,
     private readonly emailService: EmailService,
+    private readonly subscriptionsService: SubscriptionsService,
   ) {}
 
   /**
@@ -53,6 +55,15 @@ export class OrganizationInvitesService {
 
     if (!organization) {
       throw new NotFoundException(`Organization ${organizationId} not found`);
+    }
+
+    // Enforce user limit from subscription plan
+    const limits = await this.subscriptionsService.getOrgPlanLimits(organizationId);
+    const currentMemberCount = await this.userOrgService.countOrgMembers(organizationId);
+    if (currentMemberCount >= limits.users) {
+      throw new BadRequestException(
+        `Member limit reached (${limits.users}). Upgrade your plan to invite more users.`,
+      );
     }
 
     // Check if user already exists in this specific organization

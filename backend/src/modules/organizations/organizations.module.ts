@@ -12,9 +12,11 @@ import { User } from '../users/entities/user.entity';
 import { UserOrganizationMembership } from '../users/entities/user-organization-membership.entity';
 import { Project } from '../projects/entities/project.entity';
 import { Task } from '../projects/entities/task.entity';
+import { Subscription } from '../subscriptions/entities/subscription.entity';
 import { UsersModule } from '../users/users.module';
 import { EmailModule } from '../email/email.module';
 import { AuditLog } from '../../common/entities/audit-log.entity';
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -26,9 +28,11 @@ import { AuditLog } from '../../common/entities/audit-log.entity';
       Project,
       Task,
       AuditLog,
+      Subscription,
     ]),
     forwardRef(() => UsersModule),
     EmailModule,
+    SubscriptionsModule,
   ],
   controllers: [OrganizationMembersController, OrganizationsController, OrganizationInvitesController],
   providers: [OrganizationsService, OrganizationInvitesService, UserOrganizationService],

@@ -12,12 +12,14 @@ import { TasksController } from './controllers/tasks.controller';
 import { TasksGateway } from '../websocket/tasks.gateway';
 import { WebSocketModule } from '../websocket/websocket.module';
 import { ActivityModule } from '../activity/activity.module';
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Project, Task, TaskStatusHistory, Organization, UserOrganizationMembership]),
     WebSocketModule,
-    ActivityModule
+    ActivityModule,
+    SubscriptionsModule,
   ],
   controllers: [ProjectsController, TasksController],
   providers: [ProjectsService, TasksService],

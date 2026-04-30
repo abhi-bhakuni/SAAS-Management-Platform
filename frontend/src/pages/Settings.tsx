@@ -26,14 +26,22 @@ import {
   Select,
 } from '@mui/material';
 import { Sidebar } from '../components/Sidebar';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, validatePassword, hashPassword } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { organizationApi, dashboardApi, billingApi, authApi } from '../services/api';
+import { organizationApi, dashboardApi, billingApi, authApi, securityApi } from '../services/api';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
 import CreditCardOutlinedIcon from '@mui/icons-material/CreditCardOutlined';
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined';
 import AddIcon from '@mui/icons-material/Add';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import PhoneIphoneIcon from '@mui/icons-material/PhoneIphone';
+import IconButton from '@mui/material/IconButton';
+import CircularProgress from '@mui/material/CircularProgress';
 
 type Member = {
   userId: string;
@@ -80,10 +88,40 @@ export function Settings() {
   const [projectCount, setProjectCount] = useState<number | null>(null);
   const [subscription, setSubscription] = useState<any | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<any>(null);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+  const [isPortalLoading, setIsPortalLoading] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [isCancelLoading, setIsCancelLoading] = useState(false);
+
+  // Security tab state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [isPasswordSaving, setIsPasswordSaving] = useState(false);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [twoFactorToken, setTwoFactorToken] = useState('');
+  const [is2FASetupMode, setIs2FASetupMode] = useState(false);
+  const [is2FALoading, setIs2FALoading] = useState(false);
+  const [isCloseOrgDialogOpen, setIsCloseOrgDialogOpen] = useState(false);
+  const [closeOrgConfirmText, setCloseOrgConfirmText] = useState('');
+  const [isCloseOrgLoading, setIsCloseOrgLoading] = useState(false);
+  const [isDeleteAccountDialogOpen, setIsDeleteAccountDialogOpen] = useState(false);
+  const [isDeleteAccountLoading, setIsDeleteAccountLoading] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState('');
 
   const handleTabChange = (_event: SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
+
+  useEffect(() => {
+    if (user?.orgRole !== 'ADMIN' && activeTab === 2) {
+      setActiveTab(0);
+    }
+  }, [user?.orgRole, activeTab]);
 
   useEffect(() => {
     const fetchMembersAndInvites = async () => {
@@ -131,27 +169,60 @@ export function Settings() {
     fetchMembersAndInvites();
   }, [user?.selectedOrgId]);
 
-  useEffect(() => {
-    const fetchBillingData = async () => {
-      if (!user?.id) {
-        setSubscription(null);
-        setPaymentMethod(null);
-        return;
-      }
+  const fetchBillingData = async () => {
+    if (!user?.id) { setSubscription(null); setPaymentMethod(null); return; }
+    try {
+      const res = await billingApi.getMySubscription();
+      setSubscription(res.subscription ?? null);
+      setPaymentMethod(res.paymentMethod ?? null);
+    } catch (error) {
+      console.error('Failed to load billing information', error);
+      setSubscription(null);
+      setPaymentMethod(null);
+    }
+  };
 
+  useEffect(() => { fetchBillingData(); }, [user?.id]);
+
+  useEffect(() => {
+    const fetchPlans = async () => {
       try {
-        const billingResponse = await billingApi.getMySubscription();
-        setSubscription(billingResponse.subscription ?? null);
-        setPaymentMethod(billingResponse.paymentMethod ?? null);
+        const { plans: fetched } = await billingApi.getPlans();
+        setPlans(fetched ?? []);
       } catch (error) {
-        console.error('Failed to load billing information', error);
-        setSubscription(null);
-        setPaymentMethod(null);
+        console.error('Failed to load plans', error);
       }
     };
+    fetchPlans();
+  }, []);
 
-    fetchBillingData();
-  }, [user?.id]);
+  // Handle return from Stripe Checkout
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('checkout');
+    const sessionId = params.get('session_id');
+    if (status === 'success') {
+      window.history.replaceState({}, '', window.location.pathname);
+      setActiveTab(2);
+      const syncAndRefresh = async () => {
+        try {
+          if (sessionId) {
+            await billingApi.syncCheckoutSession(sessionId);
+          }
+          await fetchBillingData();
+          showToast('Subscription activated successfully!', 'success');
+        } catch {
+          showToast('Subscription activated. Refreshing billing info...', 'info');
+          await fetchBillingData();
+        }
+      };
+      syncAndRefresh();
+    } else if (status === 'canceled') {
+      showToast('Checkout was canceled.', 'info');
+      setActiveTab(2);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -314,12 +385,128 @@ export function Settings() {
     }
   };
 
+  const handleUpgrade = async (planId: string) => {
+    setIsCheckoutLoading(true);
+    try {
+      const { url } = await billingApi.createCheckoutSession(planId);
+      window.location.href = url;
+    } catch (error) {
+      console.error('Checkout failed', error);
+      showToast('Failed to start checkout. Please try again.', 'error');
+      setIsCheckoutLoading(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    setIsPortalLoading(true);
+    try {
+      const { url } = await billingApi.createPortalSession();
+      window.location.href = url;
+    } catch (error) {
+      console.error('Billing portal failed', error);
+      showToast('Failed to open billing portal. Please try again.', 'error');
+      setIsPortalLoading(false);
+    }
+  };
+
   const currentPlan = subscription?.subscriptionPlan;
   const currentPlanName = currentPlan?.name ?? 'Free Tier';
   const currentPlanDescription = currentPlan?.description ?? 'Perfect for individual developers and small experiments.';
-  const currentPlanPrice = Number(currentPlan?.price ?? 0);
-  const currentPlanBillingCycle = currentPlan?.billingCycle ?? 'month';
   const projectLimit = Number(currentPlan?.limits?.projects ?? 5);
+  const taskLimit = Number(currentPlan?.limits?.tasks ?? 20);
+  const userLimit = Number(currentPlan?.limits?.users ?? 5);
+
+  // Sync 2FA status from server-returned user object
+  useEffect(() => {
+    setTwoFactorEnabled(user?.twoFactorEnabled ?? false);
+  }, [user?.twoFactorEnabled]);
+
+  // Security handlers
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) { showToast('New passwords do not match.', 'error'); return; }
+    const validation = validatePassword(newPassword);
+    if (!validation.isValid) { showToast(validation.message, 'error'); return; }
+    setIsPasswordSaving(true);
+    try {
+      const [hashedCurrent, hashedNew] = await Promise.all([
+        hashPassword(currentPassword),
+        hashPassword(newPassword),
+      ]);
+      await securityApi.changePassword(hashedCurrent, hashedNew);
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
+      showToast('Password changed successfully.', 'success');
+    } catch { showToast('Failed to change password. Check your current password.', 'error'); }
+    finally { setIsPasswordSaving(false); }
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeleteAccountLoading(true);
+    setDeleteAccountError('');
+    try {
+      await securityApi.deleteAccount();
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    } catch (error: any) {
+      setDeleteAccountError(error?.response?.data?.message ?? 'Failed to delete account.');
+      setIsDeleteAccountLoading(false);
+    }
+  };
+
+  const handleGenerate2FA = async () => {
+    setIs2FALoading(true);
+    try {
+      const { qrCodeUrl: qr } = await securityApi.generate2FA();
+      setQrCodeUrl(qr); setIs2FASetupMode(true); setTwoFactorToken('');
+    } catch { showToast('Failed to generate 2FA setup.', 'error'); }
+    finally { setIs2FALoading(false); }
+  };
+
+  const handleEnable2FA = async () => {
+    if (twoFactorToken.length !== 6) { showToast('Enter the 6-digit code from your authenticator app.', 'error'); return; }
+    setIs2FALoading(true);
+    try {
+      await securityApi.enable2FA(twoFactorToken);
+      setTwoFactorEnabled(true); setIs2FASetupMode(false); setQrCodeUrl(''); setTwoFactorToken('');
+      showToast('Two-factor authentication enabled.', 'success');
+    } catch { showToast('Invalid code. Please try again.', 'error'); }
+    finally { setIs2FALoading(false); }
+  };
+
+  const handleDisable2FA = async () => {
+    if (twoFactorToken.length !== 6) { showToast('Enter the 6-digit code to confirm.', 'error'); return; }
+    setIs2FALoading(true);
+    try {
+      await securityApi.disable2FA(twoFactorToken);
+      setTwoFactorEnabled(false); setTwoFactorToken('');
+      showToast('Two-factor authentication disabled.', 'info');
+    } catch { showToast('Invalid code. Please try again.', 'error'); }
+    finally { setIs2FALoading(false); }
+  };
+
+  const handleCloseOrganization = async () => {
+    setIsCloseOrgLoading(true);
+    try {
+      await securityApi.closeOrganization();
+      localStorage.removeItem('authToken'); localStorage.removeItem('user');
+      window.location.href = '/login';
+    } catch { showToast('Failed to delete organization.', 'error'); setIsCloseOrgLoading(false); }
+  };
+
+  const handleCancelSubscription = async () => {
+    setIsCancelLoading(true);
+    try {
+      await billingApi.cancelSubscription();
+      await fetchBillingData();
+      setIsCancelDialogOpen(false);
+      showToast('Subscription will cancel at the end of the billing period.', 'info');
+    } catch {
+      showToast('Failed to cancel subscription. Please try again.', 'error');
+    } finally {
+      setIsCancelLoading(false);
+    }
+  };
+
   const paymentMethodLabel = paymentMethod?.card
     ? `${paymentMethod.card.brand?.toUpperCase() ?? 'Card'} ending in ${paymentMethod.card.last4}`
     : 'No payment method on file';
@@ -363,7 +550,7 @@ export function Settings() {
           >
             <Tab icon={<PersonOutlineIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Profile" />
             <Tab icon={<GroupOutlinedIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Members" />
-            <Tab icon={<CreditCardOutlinedIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Billing" />
+            <Tab icon={<CreditCardOutlinedIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Billing" sx={{ display: user?.orgRole !== 'ADMIN' ? 'none' : undefined }} />
             <Tab icon={<SecurityOutlinedIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Security" />
           </Tabs>
         </Box>
@@ -423,7 +610,7 @@ export function Settings() {
                     value={user?.email ?? ''}
                     variant="outlined"
                     sx={inputStyle}
-                    InputProps={{ readOnly: true }}
+                    slotProps={{ input: { readOnly: true } }}
                   />
                 </Box>
                 
@@ -632,86 +819,376 @@ export function Settings() {
             )}
 
             {/* BILLING SECTION */}
-            {activeTab === 2 && (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <Box>
-                  <Typography variant="h6" fontWeight="700">Subscription & Billing</Typography>
-                  <Typography variant="body2" color="text.disabled">Select the plan that fits your team's needs.</Typography>
-                </Box>
-
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                  <Card sx={{ 
-                    p: 4, 
-                    borderRadius: '16px', 
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 2
-                  }}>
-                    <Typography variant="subtitle2" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Current Plan</Typography>
-                    <Typography variant="h4" fontWeight="800">{currentPlanName}</Typography>
-                    <Typography variant="body2" color="text.secondary">{currentPlanDescription}</Typography>
-                    <Divider sx={{ my: 1, opacity: 0.05 }} />
+            {activeTab === 2 && (() => {
+              const upgradePlan = plans.find(p => p.id !== currentPlan?.id && p.type !== 'free');
+              const isOnPaidPlan = !!subscription && subscription.status === 'active' && currentPlan?.type !== 'free';
+              const isCanceling = subscription?.cancelAtPeriodEnd;
+              return (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <Box>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Typography variant="caption" color="text.disabled">Projects</Typography>
-                        <Typography variant="caption" fontWeight="700">{projectCount !== null ? `${projectCount} / ${projectLimit}` : `— / ${projectLimit}`}</Typography>
-                      </Box>
-                      <LinearProgress variant="determinate" value={projectCount === null ? 0 : Math.min((projectCount / projectLimit) * 100, 100)} sx={{ height: 6, borderRadius: 3, backgroundColor: 'rgba(255, 255, 255, 0.05)', '& .MuiLinearProgress-bar': { backgroundColor: '#FFFFFF' } }} />
+                      <Typography variant="h6" fontWeight="700">Subscription & Billing</Typography>
+                      <Typography variant="body2" color="text.disabled">Select the plan that fits your team's needs.</Typography>
                     </Box>
-                  </Card>
+                    {(isOnPaidPlan || subscription?.stripeCustomerId) && (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={handleManageSubscription}
+                        disabled={isPortalLoading}
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          borderColor: 'rgba(255,255,255,0.15)',
+                          color: 'text.secondary',
+                          borderRadius: '8px',
+                          '&:hover': { borderColor: 'rgba(255,255,255,0.4)', color: '#FFFFFF' },
+                        }}
+                      >
+                        {isPortalLoading ? 'Opening…' : 'Manage Subscription'}
+                      </Button>
+                    )}
+                  </Box>
 
-                  <Card sx={{ 
-                    p: 4, 
-                    borderRadius: '16px', 
-                    border: '2px solid #FFFFFF',
-                    backgroundColor: '#FFFFFF',
-                    color: '#000000',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 2,
-                    boxShadow: '0 20px 40px rgba(255, 255, 255, 0.1)'
-                  }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="subtitle2" sx={{ opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Upgrade</Typography>
-                      <Chip label="POPULAR" size="small" sx={{ fontWeight: 800, fontSize: '0.65rem', backgroundColor: '#0F0F11', color: '#FFFFFF' }} />
-                    </Box>
-                    <Typography variant="h4" fontWeight="800">Pro Plan</Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.8 }}>Scale your team with unlimited projects and advanced analytics.</Typography>
-                    <Divider sx={{ my: 1, opacity: 0.1, backgroundColor: '#000000' }} />
-                    <Typography variant="h5" fontWeight="800">
-                      {currentPlanPrice > 0 ? `$${currentPlanPrice}` : 'Free'}
-                      {currentPlanPrice > 0 && (
-                        <Box component="span" sx={{ fontSize: '1rem', fontWeight: 500, opacity: 0.6 }}>/ {currentPlanBillingCycle}</Box>
-                      )}
-                    </Typography>
-                    <Button variant="contained" disableElevation sx={{ mt: 'auto', backgroundColor: '#000000', color: '#FFFFFF', fontWeight: 800, textTransform: 'none', borderRadius: '8px', py: 1, '&:hover': { backgroundColor: '#27272A' } }}>
-                      Select Pro 
-                    </Button>
-                  </Card>
-                </Box>
-
-                <Box>
-                  <Typography variant="subtitle1" fontWeight="700" mb={2}>Payment Method</Typography>
-                  <Box sx={{ p: 2, borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <CreditCardOutlinedIcon sx={{ color: 'text.disabled' }} />
-                    <Box>
-                      <Typography variant="body2" fontWeight="600">{paymentMethodLabel}</Typography>
-                      <Typography variant="caption" color="text.disabled">
-                        {paymentMethod
-                          ? paymentMethodExpiry
-                            ? `Expires ${paymentMethodExpiry}`
-                            : nextBillingDate
-                              ? `Next billing ${nextBillingDate}`
-                              : 'Payment method is on file'
-                          : 'Update your billing information to enable paid plans.'}
+                  {isCanceling && (
+                    <Box sx={{ p: 2, borderRadius: '8px', backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                      <Typography variant="body2" sx={{ color: '#EF4444', fontWeight: 600 }}>
+                        Your subscription will cancel on {nextBillingDate}. Click "Manage Subscription" to reactivate.
                       </Typography>
                     </Box>
-                    <Box sx={{ flexGrow: 1 }} />
-                    <Button size="small" sx={{ color: 'text.disabled' }}>Update</Button>
+                  )}
+
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                    {/* Current Plan */}
+                    <Card sx={{
+                      p: 4,
+                      borderRadius: '16px',
+                      border: '1px solid rgba(255, 255, 255, 0.05)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 2
+                    }}>
+                      <Typography variant="subtitle2" sx={{ color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Current Plan</Typography>
+                      <Typography variant="h4" fontWeight="800">{currentPlanName}</Typography>
+                      <Typography variant="body2" color="text.secondary">{currentPlanDescription}</Typography>
+                      <Divider sx={{ my: 1, opacity: 0.05 }} />
+                      <Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="caption" color="text.disabled">Projects</Typography>
+                          <Typography variant="caption" fontWeight="700">{projectCount !== null ? `${projectCount} / ${projectLimit}` : `— / ${projectLimit}`}</Typography>
+                        </Box>
+                        <LinearProgress
+                          variant="determinate"
+                          value={projectCount === null ? 0 : Math.min((projectCount / projectLimit) * 100, 100)}
+                          sx={{ height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.05)', '& .MuiLinearProgress-bar': { backgroundColor: '#FFFFFF' } }}
+                        />
+                      </Box>
+                      {isOnPaidPlan && (
+                        <Typography variant="caption" color="text.disabled" sx={{ mt: 'auto' }}>
+                          {nextBillingDate ? `Renews ${nextBillingDate}` : 'Active'}
+                        </Typography>
+                      )}
+                    </Card>
+
+                    {/* Upgrade / Pro Plan */}
+                    {upgradePlan ? (
+                      <Card sx={{
+                        p: 4,
+                        borderRadius: '16px',
+                        border: '2px solid #FFFFFF',
+                        backgroundColor: '#FFFFFF',
+                        color: '#000000',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 2,
+                        boxShadow: '0 20px 40px rgba(255,255,255,0.1)'
+                      }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="subtitle2" sx={{ opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Upgrade</Typography>
+                          <Chip label="POPULAR" size="small" sx={{ fontWeight: 800, fontSize: '0.65rem', backgroundColor: '#0F0F11', color: '#FFFFFF' }} />
+                        </Box>
+                        <Typography variant="h4" fontWeight="800">{upgradePlan.name}</Typography>
+                        <Typography variant="body2" sx={{ opacity: 0.8 }}>{upgradePlan.description ?? 'Scale your team with advanced features.'}</Typography>
+                        <Divider sx={{ my: 1, opacity: 0.1, backgroundColor: '#000000' }} />
+                        <Typography variant="h5" fontWeight="800">
+                          {Number(upgradePlan.price) > 0 ? `$${Number(upgradePlan.price).toFixed(2)}` : 'Free'}
+                          {Number(upgradePlan.price) > 0 && (
+                            <Box component="span" sx={{ fontSize: '1rem', fontWeight: 500, opacity: 0.6 }}>/ {upgradePlan.billingCycle ?? 'month'}</Box>
+                          )}
+                        </Typography>
+                        <Button
+                          variant="contained"
+                          disableElevation
+                          onClick={() => handleUpgrade(upgradePlan.id)}
+                          disabled={isCheckoutLoading}
+                          sx={{ mt: 'auto', backgroundColor: '#000000', color: '#FFFFFF', fontWeight: 800, textTransform: 'none', borderRadius: '8px', py: 1, '&:hover': { backgroundColor: '#27272A' } }}
+                        >
+                          {isCheckoutLoading ? 'Redirecting…' : `Upgrade to ${upgradePlan.name}`}
+                        </Button>
+                      </Card>
+                    ) : isOnPaidPlan ? (
+                      <Card sx={{
+                        p: 4,
+                        borderRadius: '16px',
+                        border: '1px solid rgba(16,185,129,0.3)',
+                        background: 'linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(5,150,105,0.06) 100%)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 2.5,
+                        position: 'relative',
+                        overflow: 'hidden',
+                      }}>
+                        {/* Glow accent */}
+                        <Box sx={{ position: 'absolute', top: -40, right: -40, width: 120, height: 120, borderRadius: '50%', background: 'rgba(16,185,129,0.15)', filter: 'blur(40px)', pointerEvents: 'none' }} />
+
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Box sx={{ p: 1, borderRadius: '10px', backgroundColor: 'rgba(16,185,129,0.15)', display: 'flex' }}>
+                            <WorkspacePremiumIcon sx={{ color: '#10B981', fontSize: 22 }} />
+                          </Box>
+                          <Box>
+                            <Typography variant="caption" sx={{ color: '#10B981', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                              Active Plan
+                            </Typography>
+                            <Typography variant="h6" fontWeight="800" sx={{ color: '#FFFFFF', lineHeight: 1.2 }}>
+                              You're on the top plan
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        <Divider sx={{ borderColor: 'rgba(16,185,129,0.15)' }} />
+
+                        {[
+                          `Up to ${projectLimit} projects`,
+                          `Up to ${taskLimit} tasks`,
+                          `Up to ${userLimit} team members`,
+                          'Advanced team collaboration',
+                          'Priority support',
+                        ].map((feature) => (
+                          <Box key={feature} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <CheckCircleIcon sx={{ color: '#10B981', fontSize: 18, flexShrink: 0 }} />
+                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.75)' }}>{feature}</Typography>
+                          </Box>
+                        ))}
+
+                        <Box sx={{ mt: 'auto', pt: 1.5, borderTop: '1px solid rgba(16,185,129,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          {nextBillingDate && (
+                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)' }}>
+                              Renews <Box component="span" sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{nextBillingDate}</Box>
+                            </Typography>
+                          )}
+                          {!isCanceling && (
+                            <Button
+                              size="small"
+                              onClick={() => setIsCancelDialogOpen(true)}
+                              sx={{ color: 'rgba(239,68,68,0.6)', textTransform: 'none', fontSize: '0.75rem', p: 0, minWidth: 0, '&:hover': { color: '#EF4444', backgroundColor: 'transparent' } }}
+                            >
+                              Cancel plan
+                            </Button>
+                          )}
+                        </Box>
+                      </Card>
+                    ) : null}
+                  </Box>
+
+                  {/* Payment Method */}
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight="700" mb={2}>Payment Method</Typography>
+                    <Box sx={{ p: 2.5, borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <CreditCardOutlinedIcon sx={{ color: 'text.disabled' }} />
+                      <Box>
+                        <Typography variant="body2" fontWeight="600">{paymentMethodLabel}</Typography>
+                        <Typography variant="caption" color="text.disabled">
+                          {paymentMethod
+                            ? paymentMethodExpiry ? `Expires ${paymentMethodExpiry}` : nextBillingDate ? `Next billing ${nextBillingDate}` : 'Payment method on file'
+                            : 'No payment method. Upgrade to add one.'}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ flexGrow: 1 }} />
+                      <Button
+                        size="small"
+                        onClick={handleManageSubscription}
+                        disabled={isPortalLoading}
+                        sx={{ color: 'text.disabled', textTransform: 'none', '&:hover': { color: '#FFFFFF' } }}
+                      >
+                        {isPortalLoading ? 'Opening…' : 'Update'}
+                      </Button>
+                    </Box>
                   </Box>
                 </Box>
+              );
+            })()}
+
+            {activeTab === 3 && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+
+                {/* 1 — Password Management */}
+                <Box>
+                  <Typography variant="h6" fontWeight="700" mb={0.5}>Password</Typography>
+                  <Typography variant="body2" color="text.disabled" mb={3}>Update your account password.</Typography>
+                  {twoFactorEnabled ? (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 480 }}>
+                      <TextField
+                        label="Current password" type={showCurrentPw ? 'text' : 'password'} fullWidth size="small"
+                        value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} sx={inputStyle}
+                        slotProps={{ input: { endAdornment: (
+                          <IconButton size="small" onClick={() => setShowCurrentPw(v => !v)} sx={{ color: 'text.disabled' }}>
+                            {showCurrentPw ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                          </IconButton>
+                        ) } }}
+                      />
+                      <TextField
+                        label="New password" type={showNewPw ? 'text' : 'password'} fullWidth size="small"
+                        value={newPassword} onChange={e => setNewPassword(e.target.value)} sx={inputStyle}
+                        slotProps={{ input: { endAdornment: (
+                          <IconButton size="small" onClick={() => setShowNewPw(v => !v)} sx={{ color: 'text.disabled' }}>
+                            {showNewPw ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                          </IconButton>
+                        ) } }}
+                      />
+                      <TextField
+                        label="Confirm new password" type="password" fullWidth size="small"
+                        value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} sx={inputStyle}
+                        error={confirmPassword.length > 0 && confirmPassword !== newPassword}
+                        helperText={confirmPassword.length > 0 && confirmPassword !== newPassword ? 'Passwords do not match' : ''}
+                      />
+                      <Button
+                        variant="contained" disableElevation onClick={handleChangePassword}
+                        disabled={isPasswordSaving || !currentPassword || !newPassword || !confirmPassword}
+                        sx={{ alignSelf: 'flex-start', textTransform: 'none', fontWeight: 700, borderRadius: '8px', backgroundColor: '#FFFFFF', color: '#000000', '&:hover': { backgroundColor: '#E4E4E7' } }}
+                      >
+                        {isPasswordSaving ? <CircularProgress size={18} sx={{ color: '#000' }} /> : 'Update password'}
+                      </Button>
+                    </Box>
+                  ) : (
+                    <Box sx={{ p: 2.5, borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)', backgroundColor: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', gap: 2, maxWidth: 480 }}>
+                      <PhoneIphoneIcon sx={{ color: 'text.disabled', flexShrink: 0 }} />
+                      <Typography variant="body2" color="text.disabled">
+                        Enable Two-Factor Authentication first to manage your password.
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+
+                <Divider sx={{ opacity: 0.06 }} />
+
+                {/* 2 — Two-Factor Authentication */}
+                <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+                    <PhoneIphoneIcon sx={{ color: twoFactorEnabled ? '#10B981' : 'text.disabled', fontSize: 22 }} />
+                    <Typography variant="h6" fontWeight="700">Two-Factor Authentication</Typography>
+                    {twoFactorEnabled && <Chip label="Enabled" size="small" sx={{ backgroundColor: 'rgba(16,185,129,0.12)', color: '#10B981', fontWeight: 700, fontSize: '0.7rem' }} />}
+                  </Box>
+                  <Typography variant="body2" color="text.disabled" mb={3}>
+                    Add an extra layer of security using an authenticator app (Google Authenticator, Authy, etc.).
+                  </Typography>
+
+                  {!twoFactorEnabled && !is2FASetupMode && (
+                    <Button variant="outlined" onClick={handleGenerate2FA} disabled={is2FALoading}
+                      sx={{ textTransform: 'none', fontWeight: 600, borderColor: 'rgba(255,255,255,0.15)', color: '#FFFFFF', borderRadius: '8px', '&:hover': { borderColor: 'rgba(255,255,255,0.4)' } }}>
+                      {is2FALoading ? <CircularProgress size={18} sx={{ color: '#fff' }} /> : 'Enable 2FA'}
+                    </Button>
+                  )}
+
+                  {is2FASetupMode && qrCodeUrl && (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 340 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Scan this QR code with your authenticator app, then enter the 6-digit code below.
+                      </Typography>
+                      <Box sx={{ p: 2, backgroundColor: '#FFFFFF', borderRadius: '12px', display: 'inline-flex', alignSelf: 'flex-start' }}>
+                        <img src={qrCodeUrl} alt="2FA QR code" width={180} height={180} />
+                      </Box>
+                      <TextField
+                        label="6-digit code" fullWidth size="small" value={twoFactorToken}
+                        onChange={e => setTwoFactorToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        inputProps={{ maxLength: 6 }} sx={inputStyle}
+                        placeholder="000000"
+                      />
+                      <Box sx={{ display: 'flex', gap: 1.5 }}>
+                        <Button variant="contained" disableElevation onClick={handleEnable2FA} disabled={is2FALoading || twoFactorToken.length !== 6}
+                          sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', backgroundColor: '#10B981', color: '#fff', '&:hover': { backgroundColor: '#059669' } }}>
+                          {is2FALoading ? <CircularProgress size={18} sx={{ color: '#fff' }} /> : 'Verify & Activate'}
+                        </Button>
+                        <Button onClick={() => { setIs2FASetupMode(false); setQrCodeUrl(''); setTwoFactorToken(''); }}
+                          sx={{ textTransform: 'none', color: 'text.disabled', '&:hover': { color: '#fff' } }}>Cancel</Button>
+                      </Box>
+                    </Box>
+                  )}
+
+                  {twoFactorEnabled && (
+                    <Typography variant="body2" color="text.disabled">
+                      2FA is active. Contact support if you need to disable it.
+                    </Typography>
+                  )}
+                </Box>
+
+                <Divider sx={{ opacity: 0.06 }} />
+
+                {/* 3 — Login Activity */}
+                <Box>
+                  <Typography variant="h6" fontWeight="700" mb={0.5}>Login Activity</Typography>
+                  <Typography variant="body2" color="text.disabled" mb={3}>Recent sign-ins to your account.</Typography>
+                  <Box sx={{ p: 2.5, borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box>
+                      <Typography variant="body2" fontWeight="600">Last sign-in</Typography>
+                      <Typography variant="caption" color="text.disabled">
+                        {user?.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'No login recorded'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+
+                <Divider sx={{ opacity: 0.06 }} />
+
+                {/* 4 — Danger Zone */}
+                <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                    <WarningAmberIcon sx={{ color: '#EF4444', fontSize: 20 }} />
+                    <Typography variant="h6" fontWeight="700" sx={{ color: '#EF4444' }}>Danger Zone</Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.disabled" mb={3}>
+                    These actions are permanent and cannot be undone.
+                  </Typography>
+                  <Box sx={{ p: 3, borderRadius: '12px', border: '1px solid rgba(239,68,68,0.2)', backgroundColor: 'rgba(239,68,68,0.04)', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {/* Delete account — all users */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                      <Box>
+                        <Typography variant="subtitle2" fontWeight="700">Delete my account</Typography>
+                        <Typography variant="caption" color="text.disabled">
+                          Permanently removes your account and all associated data. This cannot be undone.
+                        </Typography>
+                      </Box>
+                      <Button
+                        variant="outlined" size="small" onClick={() => { setDeleteAccountError(''); setIsDeleteAccountDialogOpen(true); }}
+                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', borderColor: 'rgba(239,68,68,0.4)', color: '#EF4444', whiteSpace: 'nowrap', '&:hover': { borderColor: '#EF4444', backgroundColor: 'rgba(239,68,68,0.08)' } }}
+                      >
+                        Delete account
+                      </Button>
+                    </Box>
+
+                    {/* Delete organization — ADMIN only */}
+                    {user?.orgRole === 'ADMIN' && (
+                      <>
+                        <Divider sx={{ borderColor: 'rgba(239,68,68,0.1)' }} />
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                          <Box>
+                            <Typography variant="subtitle2" fontWeight="700">Delete organization</Typography>
+                            <Typography variant="caption" color="text.disabled">
+                              Permanently deletes this workspace, all projects, tasks, and removes all members. This cannot be undone.
+                            </Typography>
+                          </Box>
+                          <Button
+                            variant="outlined" size="small" onClick={() => setIsCloseOrgDialogOpen(true)}
+                            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', borderColor: 'rgba(239,68,68,0.4)', color: '#EF4444', whiteSpace: 'nowrap', '&:hover': { borderColor: '#EF4444', backgroundColor: 'rgba(239,68,68,0.08)' } }}
+                          >
+                            Delete organization
+                          </Button>
+                        </Box>
+                      </>
+                    )}
+                  </Box>
+                </Box>
+
               </Box>
             )}
 
@@ -719,10 +1196,121 @@ export function Settings() {
         </Box>
       </Box>
 
+      {/* Cancel Subscription Dialog */}
+      <Dialog
+        open={isCancelDialogOpen}
+        onClose={() => { if (!isCancelLoading) setIsCancelDialogOpen(false); }}
+        slotProps={{ paper: {
+          elevation: 0,
+          sx: { borderRadius: '12px', width: '100%', maxWidth: 420, backgroundColor: '#18181B', border: '1px solid rgba(239,68,68,0.2)' },
+        } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#FFFFFF', pt: 3, pb: 1 }}>
+          Cancel subscription?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            Your plan stays active until <Box component="span" sx={{ color: '#FFFFFF', fontWeight: 600 }}>{nextBillingDate ?? 'the end of the billing period'}</Box>. After that, you'll be moved to the Free Tier and lose access to Pro features.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
+          <Button
+            onClick={() => setIsCancelDialogOpen(false)}
+            disabled={isCancelLoading}
+            sx={{ textTransform: 'none', fontWeight: 600, color: 'text.secondary', borderRadius: '8px' }}
+          >
+            Keep plan
+          </Button>
+          <Button
+            onClick={handleCancelSubscription}
+            disabled={isCancelLoading}
+            variant="contained"
+            disableElevation
+            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', backgroundColor: '#EF4444', '&:hover': { backgroundColor: '#DC2626' } }}
+          >
+            {isCancelLoading ? 'Canceling…' : 'Yes, cancel'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Close Organization Dialog */}
+      <Dialog
+        open={isCloseOrgDialogOpen}
+        onClose={() => { if (!isCloseOrgLoading) { setIsCloseOrgDialogOpen(false); setCloseOrgConfirmText(''); } }}
+        slotProps={{ paper: { elevation: 0, sx: { borderRadius: '12px', width: '100%', maxWidth: 460, backgroundColor: '#18181B', border: '1px solid rgba(239,68,68,0.25)' } } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#EF4444', pt: 3, pb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <WarningAmberIcon fontSize="small" /> Delete organization?
+        </DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            This will permanently delete <Box component="span" sx={{ color: '#FFFFFF', fontWeight: 600 }}>{user?.name ?? 'your organization'}</Box>, all projects, tasks, and remove all members. This action <Box component="span" sx={{ color: '#EF4444', fontWeight: 700 }}>cannot be undone</Box>.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Type <Box component="span" sx={{ color: '#FFFFFF', fontWeight: 700, fontFamily: 'monospace' }}>DELETE</Box> to confirm:
+          </Typography>
+          <TextField
+            size="small" fullWidth value={closeOrgConfirmText}
+            onChange={e => setCloseOrgConfirmText(e.target.value)}
+            placeholder="DELETE" sx={inputStyle}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
+          <Button onClick={() => { setIsCloseOrgDialogOpen(false); setCloseOrgConfirmText(''); }} disabled={isCloseOrgLoading}
+            sx={{ textTransform: 'none', fontWeight: 600, color: 'text.secondary', borderRadius: '8px' }}>
+            Cancel
+          </Button>
+          <Button onClick={handleCloseOrganization} disabled={isCloseOrgLoading || closeOrgConfirmText !== 'DELETE'}
+            variant="contained" disableElevation
+            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', backgroundColor: '#EF4444', '&:hover': { backgroundColor: '#DC2626' } }}>
+            {isCloseOrgLoading ? <CircularProgress size={18} sx={{ color: '#fff' }} /> : 'Delete organization'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Account Dialog */}
+      <Dialog
+        open={isDeleteAccountDialogOpen}
+        onClose={() => { if (!isDeleteAccountLoading) { setIsDeleteAccountDialogOpen(false); setDeleteAccountError(''); } }}
+        slotProps={{ paper: { elevation: 0, sx: { borderRadius: '12px', width: '100%', maxWidth: 440, backgroundColor: '#18181B', border: '1px solid rgba(239,68,68,0.25)' } } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#EF4444', pt: 3, pb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <WarningAmberIcon fontSize="small" /> Delete account?
+        </DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          <Typography variant="body2" color="text.secondary">
+            This will permanently delete your account. You will be logged out immediately and <Box component="span" sx={{ color: '#EF4444', fontWeight: 700 }}>this action cannot be undone</Box>.
+          </Typography>
+          {deleteAccountError && (
+            <Typography variant="body2" sx={{ color: '#EF4444', fontWeight: 600 }}>
+              {deleteAccountError}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
+          <Button
+            onClick={() => { setIsDeleteAccountDialogOpen(false); setDeleteAccountError(''); }}
+            disabled={isDeleteAccountLoading}
+            sx={{ textTransform: 'none', fontWeight: 600, color: 'text.secondary', borderRadius: '8px' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteAccount}
+            disabled={isDeleteAccountLoading}
+            variant="contained"
+            disableElevation
+            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '8px', backgroundColor: '#EF4444', '&:hover': { backgroundColor: '#DC2626' } }}
+          >
+            {isDeleteAccountLoading ? <CircularProgress size={18} sx={{ color: '#fff' }} /> : 'Delete account'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Dialog
         open={!!memberToRemove}
         onClose={() => { if (!removingMemberId) setMemberToRemove(null); }}
-        PaperProps={{
+        slotProps={{ paper: {
           elevation: 0,
           sx: {
             borderRadius: '12px',
@@ -731,7 +1319,7 @@ export function Settings() {
             backgroundColor: '#18181B',
             border: '1px solid #2A2A2E',
           },
-        }}
+        } }}
       >
         <DialogTitle sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#FFFFFF', pt: 3, pb: 1 }}>
           Remove Member
@@ -777,7 +1365,7 @@ export function Settings() {
       <Dialog
         open={!!inviteToRevoke}
         onClose={() => { if (!revokingInviteId) setInviteToRevoke(null); }}
-        PaperProps={{
+        slotProps={{ paper: {
           elevation: 0,
           sx: {
             borderRadius: '12px',
@@ -786,7 +1374,7 @@ export function Settings() {
             backgroundColor: '#18181B',
             border: '1px solid #2A2A2E',
           },
-        }}
+        } }}
       >
         <DialogTitle sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#FFFFFF', pt: 3, pb: 1 }}>
           Revoke Invitation
@@ -832,7 +1420,7 @@ export function Settings() {
       <Dialog
         open={isInviteModalOpen}
         onClose={handleCloseInviteModal}
-        PaperProps={{
+        slotProps={{ paper: {
           elevation: 0,
           sx: {
             borderRadius: '12px',
@@ -842,7 +1430,7 @@ export function Settings() {
             border: '1px solid',
             borderColor: '#2A2A2E',
           },
-        }}
+        } }}
       >
         <DialogTitle sx={{ fontWeight: 700, fontSize: '1.2rem', color: '#FFFFFF', pb: 1, pt: 3 }}>
           Invite Member

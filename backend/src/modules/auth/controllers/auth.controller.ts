@@ -3,12 +3,14 @@ import {
   Post,
   Get,
   Body,
+  Delete,
   UseGuards,
   HttpCode,
   HttpStatus,
   Param,
   Inject,
   forwardRef,
+  Request,
 } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
 import { UsersService } from '../../users/services/users.service';
@@ -75,6 +77,8 @@ export class AuthController {
       name: organization?.name || null,
       selectedOrgId: user.selectedOrgId,
       orgRole: user.orgRole,
+      twoFactorEnabled: fullUser.twoFactorEnabled ?? false,
+      lastLoginAt: fullUser.lastLoginAt ?? null,
     };
   }
 
@@ -117,5 +121,63 @@ export class AuthController {
       inviteResult.user,
       inviteResult.invite.organizationId,
     );
+  }
+
+  /** POST /auth/change-password */
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @CurrentUser() user: any,
+    @Body() body: { currentPassword: string; newPassword: string },
+  ) {
+    return this.authService.changePassword(user.id, body.currentPassword, body.newPassword);
+  }
+
+  /** GET /auth/login-activity */
+  @UseGuards(JwtAuthGuard)
+  @Get('login-activity')
+  async getLoginActivity(@CurrentUser() user: any) {
+    return this.authService.getLoginActivity(user.id);
+  }
+
+  /** POST /auth/2fa/generate */
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/generate')
+  @HttpCode(HttpStatus.OK)
+  async generate2FA(@CurrentUser() user: any) {
+    return this.authService.generate2FA(user.id);
+  }
+
+  /** POST /auth/2fa/enable */
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/enable')
+  @HttpCode(HttpStatus.OK)
+  async enable2FA(@CurrentUser() user: any, @Body() body: { token: string }) {
+    return this.authService.enable2FA(user.id, body.token);
+  }
+
+  /** POST /auth/2fa/disable */
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/disable')
+  @HttpCode(HttpStatus.OK)
+  async disable2FA(@CurrentUser() user: any, @Body() body: { token: string }) {
+    return this.authService.disable2FA(user.id, body.token);
+  }
+
+  /** DELETE /auth/close-organization */
+  @UseGuards(JwtAuthGuard)
+  @Delete('close-organization')
+  @HttpCode(HttpStatus.OK)
+  async closeOrganization(@CurrentUser() user: any) {
+    return this.authService.closeOrganization(user.selectedOrgId);
+  }
+
+  /** DELETE /auth/delete-account */
+  @UseGuards(JwtAuthGuard)
+  @Delete('delete-account')
+  @HttpCode(HttpStatus.OK)
+  async deleteAccount(@CurrentUser() user: any) {
+    return this.authService.deleteAccount(user.id);
   }
 }

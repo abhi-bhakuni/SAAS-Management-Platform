@@ -10,10 +10,11 @@ import { Subscription } from './entities/subscription.entity';
 import { SubscriptionPlan } from './entities/subscription-plan.entity';
 import { UsersModule } from '../users/users.module';
 import { User } from '../users/entities/user.entity';
+import { UserOrganizationMembership } from '../users/entities/user-organization-membership.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Subscription, SubscriptionPlan, User]),
+    TypeOrmModule.forFeature([Subscription, SubscriptionPlan, User, UserOrganizationMembership]),
     ConfigModule,
     UsersModule,
   ],

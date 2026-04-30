@@ -153,6 +153,88 @@ export class StripeService {
     }
   }
 
+  // Create a Stripe Checkout hosted session
+  async createCheckoutSession(
+    customerId: string,
+    priceId: string,
+    successUrl: string,
+    cancelUrl: string,
+    metadata?: Record<string, string>,
+  ) {
+    try {
+      const session = await this.stripe.checkout.sessions.create({
+        customer: customerId,
+        billing_address_collection: 'auto',
+        line_items: [{ price: priceId, quantity: 1 }],
+        mode: 'subscription',
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        metadata,
+      });
+      this.logger.log(`Created Stripe Checkout session: ${session.id}`);
+      return session;
+    } catch (error) {
+      this.logger.error('Error creating Checkout session:', error);
+      throw error;
+    }
+  }
+
+  // Retrieve a Checkout session (used to look up customer from session_id)
+  async retrieveCheckoutSession(sessionId: string) {
+    try {
+      return await this.stripe.checkout.sessions.retrieve(sessionId, {
+        expand: ['subscription'],
+      });
+    } catch (error) {
+      this.logger.error('Error retrieving Checkout session:', error);
+      throw error;
+    }
+  }
+
+  // Create a Stripe Billing Portal session for self-service subscription management
+  async createBillingPortalSession(customerId: string, returnUrl: string) {
+    try {
+      const configId = await this.getOrCreatePortalConfiguration();
+      const sessionParams: any = { customer: customerId, return_url: returnUrl };
+      if (configId) sessionParams.configuration = configId;
+      const session = await this.stripe.billingPortal.sessions.create(sessionParams);
+      this.logger.log(`Created Billing Portal session for customer: ${customerId}`);
+      return session;
+    } catch (error) {
+      this.logger.error('Error creating Billing Portal session:', error);
+      throw error;
+    }
+  }
+
+  private async getOrCreatePortalConfiguration(): Promise<string | null> {
+    try {
+      const existing = await this.stripe.billingPortal.configurations.list({ is_default: true, limit: 1 });
+      if (existing.data.length > 0) return existing.data[0].id;
+
+      const config = await this.stripe.billingPortal.configurations.create({
+        features: {
+          payment_method_update: { enabled: true },
+          invoice_history: { enabled: true },
+          subscription_cancel: { enabled: true },
+          subscription_update: {
+            enabled: true,
+            default_allowed_updates: ['price'],
+            proration_behavior: 'create_prorations',
+            products: [],
+          },
+        },
+        business_profile: {
+          headline: 'Manage your subscription',
+        },
+      } as any);
+      this.logger.log(`Created Billing Portal configuration: ${config.id}`);
+      return config.id;
+    } catch (error) {
+      this.logger.warn('Could not get/create portal configuration, using default:', (error as any)?.message);
+      return null;
+    }
+  }
+
   // List prices (for getting price IDs)
   async listPrices() {
     try {
