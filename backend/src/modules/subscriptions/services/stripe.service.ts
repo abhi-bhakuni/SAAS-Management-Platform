@@ -1,12 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import Stripe from 'stripe';
+import Stripe = require('stripe');
 
-type PaymentMethodType = 'card' | 'bank_account' | 'sepa_debit' | 'au_becs_debit' | 'bacs_debit' | 'sofort' | 'ideal' | 'p24' | 'alipay' | 'giropay' | 'bancontact' | 'eps' | 'multibanco' | 'wechat_pay' | 'boleto' | 'oxxo' | 'fpx' | 'grabpay' | 'paynow' | 'qris' | 'upi' | 'netbanking' | 'klarna' | 'affirm' | 'afterpay_clearpay' | 'zip' | 'us_bank_account' | 'cashapp' | 'link' | 'paypal' | 'revolut_pay' | 'amazon_pay' | 'crypto';
 
 @Injectable()
 export class StripeService {
-  private stripe: any;
+  private stripe: Stripe.Stripe;
   private readonly logger = new Logger(StripeService.name);
 
   constructor(private configService: ConfigService) {
@@ -113,12 +112,12 @@ export class StripeService {
   // List payment methods for a customer
   async listCustomerPaymentMethods(
     customerId: string,
-    type: PaymentMethodType = 'card',
+    type: string = 'card',
   ) {
     try {
       return await this.stripe.paymentMethods.list({
         customer: customerId,
-        type,
+        type: type as any,
       });
     } catch (error) {
       this.logger.error('Error listing payment methods for Stripe customer:', error);

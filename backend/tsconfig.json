@@ -5,7 +5,7 @@
     "lib": ["ES2021"],
     "declaration": true,
     "outDir": "./dist",
-    "baseUrl": "./",
+    "rootDir": "./src",
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,
@@ -18,9 +18,9 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "paths": {
-      "@/*": ["src/*"],
-      "@modules/*": ["src/modules/*"],
-      "@common/*": ["src/common/*"]
+      "@/*": ["./src/*"],
+      "@modules/*": ["./src/modules/*"],
+      "@common/*": ["./src/common/*"]
     }
   },
   "include": ["src"],

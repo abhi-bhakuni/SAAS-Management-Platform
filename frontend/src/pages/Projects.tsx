@@ -3,25 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { billingApi, projectsApi } from '../services/api';
-import { 
-  Box, 
-  Typography, 
-  Button, 
-  Card, 
-  CardContent, 
+import {
+  Box,
+  Typography,
+  Button,
+  Card,
+  CardContent,
   Avatar,
   AvatarGroup,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
   Skeleton,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import AccessTimeOutlinedIcon from '@mui/icons-material/AccessTimeOutlined';
 import { Sidebar } from '../components/Sidebar';
+import { CreateProjectModal } from '../components/CreateProjectModal';
 
 export function Projects() {
   const navigate = useNavigate();
@@ -31,7 +27,6 @@ export function Projects() {
   const [subscription, setSubscription] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newProject, setNewProject] = useState({ name: '', description: '' });
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -86,24 +81,13 @@ export function Projects() {
   
   const handleCloseModal = () => setIsModalOpen(false);
 
-  const handleCreateProject = async () => {
-    if (!newProject.name || !user?.selectedOrgId) return;
+  const refreshProjects = async () => {
     try {
-      if (isProjectLimitReached) {
-        showToast(`Free plan allows only ${projectLimit} projects. Upgrade to add more.`, 'warning');
-        return;
-      }
-
-      const created = await projectsApi.createProject(newProject);
-      setProjects([created, ...projects]);
-      setNewProject({ name: '', description: '' });
-      handleCloseModal();
-    } catch (error) {
-      console.error("Failed to create project", error);
-      showToast('Project creation failed. Please try again.', 'error');
-      return;
+      const result = await projectsApi.getProjects();
+      setProjects(result.data || result);
+    } catch {
+      showToast('Failed to refresh projects.', 'error');
     }
-    showToast('Project created successfully.', 'success');
   };
 
   return (
@@ -308,114 +292,11 @@ export function Projects() {
         </Box>
       </Box>
 
-      {/* New Project Modal */}
-      <Dialog 
-        open={isModalOpen} 
+      <CreateProjectModal
+        open={isModalOpen}
         onClose={handleCloseModal}
-        PaperProps={{
-          elevation: 0,
-          sx: {
-            borderRadius: '12px',
-            width: '100%',
-            maxWidth: 400,
-            backgroundColor: '#18181B',
-            border: '1px solid',
-            borderColor: '#2A2A2E',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-          }
-        }}
-      >
-        <DialogTitle sx={{ fontWeight: 700, fontSize: '1.25rem', pb: 1, pt: 3, color: '#FFFFFF' }}>
-          Create New Project
-        </DialogTitle>
-        <DialogContent sx={{ pb: 3 }}>
-          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
-            Give your project a name and a brief description to get started.
-          </Typography>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Project Name"
-            placeholder="e.g. Website Redesign"
-            type="text"
-            fullWidth
-            variant="outlined"
-            size="small"
-            value={newProject.name}
-            onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
-            sx={{ 
-              mb: 3, 
-              mt: 1, 
-              '& .MuiOutlinedInput-root': { 
-                borderRadius: '8px',
-                backgroundColor: '#0F0F11',
-                '& fieldset': { borderColor: '#2A2A2E' },
-                '&:hover fieldset': { borderColor: '#3F3F46' },
-              } 
-            }}
-          />
-          <TextField
-            margin="dense"
-            label="Description"
-            placeholder="What is this project about?"
-            type="text"
-            fullWidth
-            variant="outlined"
-            multiline
-            rows={3}
-            size="small"
-            value={newProject.description}
-            onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
-            sx={{ 
-              '& .MuiOutlinedInput-root': { 
-                borderRadius: '8px',
-                backgroundColor: '#0F0F11',
-                '& fieldset': { borderColor: '#2A2A2E' },
-                '&:hover fieldset': { borderColor: '#3F3F46' },
-              } 
-            }}
-          />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 4, pt: 0, gap: 1.5 }}>
-          <Button 
-            onClick={handleCloseModal} 
-            sx={{ 
-              color: 'text.secondary', 
-              textTransform: 'none', 
-              fontWeight: 600, 
-              borderRadius: '6px',
-              px: 2,
-              '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)', color: '#FFFFFF' }
-            }}
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleCreateProject} 
-            variant="contained"
-            disableElevation
-            disabled={!newProject.name}
-            sx={{ 
-              borderRadius: '6px', 
-              textTransform: 'none', 
-              fontWeight: 700,
-              px: 3,
-              py: 0.8,
-              backgroundColor: '#FFFFFF',
-              color: '#000000',
-              '&:hover': {
-                backgroundColor: '#E2E2E2',
-              },
-              '&.Mui-disabled': {
-                backgroundColor: '#2A2A2E',
-                color: '#71717A'
-              }
-            }}
-          >
-            Create Project
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onCreated={refreshProjects}
+      />
     </Box>
   );
 }

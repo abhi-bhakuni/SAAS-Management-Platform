@@ -217,20 +217,6 @@ export class UsersService {
     return userWithoutPassword;
   }
 
-  async findByOrganization(organizationId: string) {
-    // NOTE: This method should be replaced by UserOrganizationService
-    // Keeping for backward compatibility but always returns empty array
-    // Use UserOrganizationService.getOrgMembers() instead
-    return [];
-  }
-
-  async countByOrganization(organizationId: string): Promise<number> {
-    // NOTE: This method should be replaced by UserOrganizationService
-    // Keeping for backward compatibility but always returns 0
-    // Use UserOrganizationService.countOrgMembers() instead
-    return 0;
-  }
-
   /** Update arbitrary raw fields (e.g. twoFactorSecret, twoFactorEnabled) without DTO restrictions */
   async updateRaw(id: string, fields: Partial<Record<string, any>>) {
     await this.userRepository.update(id, fields);

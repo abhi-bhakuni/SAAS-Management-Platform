@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { createServer } from 'http';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './filters/global-exception.filter';
 import { LoggingInterceptor } from './interceptors/logging.interceptor';
@@ -49,22 +50,33 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   await app.listen(port);
 
+  // Dedicated health-check port (for load balancers / k8s probes)
+  const healthPort = parseInt(process.env.HEALTHCHECK_PORT ?? '3001', 10);
+  const healthServer = createServer((req, res) => {
+    if (req.url === '/health' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }));
+    } else {
+      res.writeHead(404);
+      res.end();
+    }
+  });
+  healthServer.listen(healthPort);
+
   logger.log(`🚀 Application is running on: http://localhost:${port}`);
   logger.log(`📚 Swagger documentation available at: http://localhost:${port}/api`);
   logger.log(`💚 Health checks available at: http://localhost:${port}/health`);
+  logger.log(`🩺 Health probe port: http://localhost:${healthPort}/health`);
 
   // Graceful shutdown
-  process.on('SIGINT', async () => {
-    logger.log('🛑 Received SIGINT, shutting down gracefully...');
+  const shutdown = async (signal: string) => {
+    logger.log(`🛑 Received ${signal}, shutting down gracefully...`);
+    healthServer.close();
     await app.close();
     process.exit(0);
-  });
-
-  process.on('SIGTERM', async () => {
-    logger.log('🛑 Received SIGTERM, shutting down gracefully...');
-    await app.close();
-    process.exit(0);
-  });
+  };
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
 
 bootstrap().catch((error) => {

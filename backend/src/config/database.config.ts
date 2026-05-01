@@ -20,7 +20,7 @@ export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
   host: process.env.DATABASE_HOST || 'localhost',
   port: parseInt(process.env.DATABASE_PORT || '5432', 10),
-  username: process.env.DATABASE_USER || 'abhishekbhakuni',
+  username: process.env.DATABASE_USER || 'postgres',
   password: process.env.DATABASE_PASSWORD || '',
   database: process.env.DATABASE_NAME || 'saas_management_db',
   entities: [
@@ -38,8 +38,8 @@ export const dataSourceOptions: DataSourceOptions = {
     ChatMessage,
   ],
   migrations: ['dist/migrations/*.js'],
-  synchronize: process.env.NODE_ENV === 'development',
-  logging: ['query', 'error', 'warn'],
+  synchronize: false,
+  logging: ['error', 'warn'],
   logger: new TypeOrmCustomLogger(),
   ssl: process.env.DATABASE_SSL === 'true',
 };

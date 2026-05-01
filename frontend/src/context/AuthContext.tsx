@@ -2,14 +2,6 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { authApi } from '../services/api';
 
-export const hashPassword = async (password: string) => {
-  if (!password) return password;
-  const msgBuffer = new TextEncoder().encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-};
-
 export const validatePassword = (password: string): { isValid: boolean; message: string } => {
   if (
     !password || 
@@ -39,13 +31,27 @@ interface User {
   lastLoginAt?: string | null;
 }
 
+interface LoginCredentials {
+  email: string;
+  password: string;
+  twoFactorToken?: string;
+}
+
+interface RegisterData {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  inviteToken?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (credentials: any) => Promise<void>;
-  register: (data: any) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   updateUser: (updated: Partial<User>) => void;
 }
@@ -115,17 +121,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(timer);
   }, [token]);
 
-  const login = async (credentials: any) => {
-    const validation = validatePassword(credentials.password);
-    if (!validation.isValid) {
-      throw new Error(validation.message);
-    }
-    
-    const secureCredentials = { 
-      ...credentials, 
-      password: await hashPassword(credentials.password) 
-    };
-    const data = await authApi.login(secureCredentials);
+  const login = async (credentials: LoginCredentials) => {
+    const data = await authApi.login(credentials);
     const { access_token, user: userData } = data;
     
     localStorage.setItem('authToken', access_token);
@@ -143,17 +140,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const register = async (signUpData: any) => {
+  const register = async (signUpData: RegisterData) => {
     const validation = validatePassword(signUpData.password);
     if (!validation.isValid) {
       throw new Error(validation.message);
     }
-    
-    const secureData = { 
-      ...signUpData, 
-      password: await hashPassword(signUpData.password) 
-    };
-    const data = await authApi.register(secureData);
+    const data = await authApi.register(signUpData);
     const { access_token, user: userData } = data;
     
     localStorage.setItem('authToken', access_token);

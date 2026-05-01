@@ -5,6 +5,7 @@ import {
   ConflictException,
   ForbiddenException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -13,6 +14,7 @@ import { generateSecret, generateURI, verify as verifyTOTP } from 'otplib';
 import * as QRCode from 'qrcode';
 import { UsersService } from '../../users/services/users.service';
 import { LoginDto, SignupDto, AuthResponseDto } from '../dtos/index';
+import { CreateUserDto } from '../../users/dtos/create-user.dto';
 import { UserOrganizationMembership } from '../../users/entities/user-organization-membership.entity';
 import { AuditLog } from '../../../common/entities/audit-log.entity';
 import { OrganizationRole } from '../../../common/enums';
@@ -23,6 +25,8 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private jwtService: JwtService,
     private usersService: UsersService,
@@ -61,9 +65,9 @@ export class AuthService {
         // Global role is always 'member' for invite-based signups; org-level role lives in the membership
         const user = await this.usersService.create({
           ...signupDto,
-          email: invite.email, // Override email with the one from the invite to prevent abuse
-          role: invite.role
-        } as any);
+          email: invite.email,
+          role: invite.role as string,
+        } as CreateUserDto);
 
         await this.auditLogRepository.save(
           this.auditLogRepository.create({
@@ -112,19 +116,16 @@ export class AuthService {
       }
     } else {
       try {
-        // Set default role if not provided
         if (!signupDto.role) {
-          signupDto.role = 'admin' as any;
+          signupDto.role = OrganizationRole.ADMIN;
         }
 
-        // Create organizaion of a new user
         const new_org = await this.organizationsService.create({
           name: `${signupDto.firstName}'s Workspace`,
           slug: `organization-workspace-${signupDto.firstName.toLowerCase()}`,
         });
 
-        // Create user via UsersService (WITHOUT organizationId)
-        const user = await this.usersService.create(signupDto as any);
+        const user = await this.usersService.create(signupDto as CreateUserDto);
 
         await this.auditLogRepository.save(
           this.auditLogRepository.create({
@@ -388,8 +389,7 @@ export class AuthService {
         'Reset your Nexus password',
       );
     } catch {
-      // Email delivery failed — log the link so dev can test manually
-      console.log(`[DEV] Password reset link for ${email}: ${resetUrl}`);
+      this.logger.warn(`Email delivery failed for ${email}. Reset URL: ${resetUrl}`);
     }
   }
 

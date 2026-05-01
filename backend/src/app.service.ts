@@ -2,14 +2,11 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class AppService {
-  getHello(): string {
-    return 'Welcome to SAAS Management Platform API!';
-  }
-
-  getHealth() {
+  getInfo(): object {
     return {
+      name: 'SAAS Management Platform API',
+      version: '1.0.0',
       status: 'ok',
-      timestamp: new Date().toISOString(),
     };
   }
 }

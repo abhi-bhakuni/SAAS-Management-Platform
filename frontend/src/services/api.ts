@@ -86,17 +86,15 @@ export const dashboardApi = {
       const response = await api.get('/sandbox/dashboard');
       return response.data;
     }
-    const response = await api.get(`/organizations/dashboard-stats`);
+    const response = await api.get('/organizations/dashboard-stats');
     return response.data;
-  }
+  },
 };
 
 export const organizationApi = {
   getMembers: async (page = 1, limit = 50) => {
     if (isSandboxMode()) {
-      const response = await api.get('/sandbox/members', {
-        params: { page, limit },
-      });
+      const response = await api.get('/sandbox/members', { params: { page, limit } });
       return response.data;
     }
 
@@ -183,7 +181,7 @@ export const projectsApi = {
       const response = await api.get('/sandbox/projects');
       return response.data;
     }
-    const response = await api.get(`/projects`);
+    const response = await api.get('/projects');
     return response.data;
   },
   createProject: async (data: any) => {
@@ -244,7 +242,7 @@ export const taskApi = {
     );
   },
   getAssignableUsers: async (projectId: string): Promise<any[]> => {
-    if (isSandboxMode()) return [{ id: 'u1', name: 'Abhishek B.' }, { id: 'u2', name: 'Sarah M.' }];
+    if (isSandboxMode()) return [];
     const response = await api.get(`/tasks/assignable-users`, {
       params: projectId ? { projectId } : undefined,
     });

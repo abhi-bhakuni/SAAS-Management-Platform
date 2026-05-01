@@ -7,6 +7,16 @@ import { UserOrganizationMembership } from '../../users/entities/user-organizati
 import { OrganizationRole } from '../../../common/enums';
 import { StripeService } from './stripe.service';
 import { SubscriptionPlansService } from './subscription-plans.service';
+interface StripeSubscriptionData {
+  id: string;
+  status: string;
+  current_period_start: number;
+  current_period_end: number;
+  cancel_at_period_end?: boolean;
+  canceled_at?: number | null;
+  trial_start?: number | null;
+  trial_end?: number | null;
+}
 
 export interface CreateSubscriptionDto {
   userId: string;
@@ -36,7 +46,7 @@ export class SubscriptionsService {
 
   // Create a new subscription
   async createSubscription(createSubscriptionDto: CreateSubscriptionDto) {
-    const { userId, subscriptionPlanId, paymentMethodId } = createSubscriptionDto;
+    const { userId, subscriptionPlanId } = createSubscriptionDto;
 
     // Get user and plan
     const user = await this.userRepository.findOne({ where: { id: userId } });
@@ -80,7 +90,7 @@ export class SubscriptionsService {
           subscriptionId: savedSubscription.id,
           userId,
         },
-      ) as any;
+      ) as unknown as StripeSubscriptionData;
 
       // Update subscription with Stripe data
       savedSubscription.stripeSubscriptionId = stripeSubscription.id;
@@ -178,7 +188,7 @@ export class SubscriptionsService {
   }
 
   // Update subscription from Stripe webhook
-  async updateSubscriptionFromWebhook(stripeSubscription: any) {
+  async updateSubscriptionFromWebhook(stripeSubscription: StripeSubscriptionData) {
     const subscription = await this.subscriptionRepository.findOne({
       where: { stripeSubscriptionId: stripeSubscription.id },
     });
@@ -191,7 +201,7 @@ export class SubscriptionsService {
     subscription.status = this.mapStripeStatus(stripeSubscription.status);
     subscription.currentPeriodStart = new Date(stripeSubscription.current_period_start * 1000);
     subscription.currentPeriodEnd = new Date(stripeSubscription.current_period_end * 1000);
-    subscription.cancelAtPeriodEnd = stripeSubscription.cancel_at_period_end;
+    subscription.cancelAtPeriodEnd = stripeSubscription.cancel_at_period_end ?? false;
 
     if (stripeSubscription.canceled_at) {
       subscription.canceledAt = new Date(stripeSubscription.canceled_at * 1000);
